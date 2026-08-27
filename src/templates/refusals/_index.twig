@@ -1,0 +1,52 @@
+{% extends "_layouts/cp" %}
+
+{% set title = "Refusals"|t('seclude') %}
+
+{% block actionButton %}
+    {% if rows|length %}
+        <form method="post" accept-charset="UTF-8" style="display:inline;">
+            {{ csrfInput() }}
+            <input type="hidden" name="action" value="seclude/refusals/clear">
+            <button type="submit" class="btn">{{ "Clear log"|t('seclude') }}</button>
+        </form>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if rows|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ "When"|t('seclude') }}</th>
+                    <th>{{ "User"|t('seclude') }}</th>
+                    <th>{{ "Element"|t('seclude') }}</th>
+                    <th>{{ "Wanted to"|t('seclude') }}</th>
+                    <th>{{ "Reason"|t('seclude') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td class="light">{{ row.dateCreated }}</td>
+                        <td>{{ users[row.userId] ?? '—' }}</td>
+                        <td>
+                            {% set el = elements[row.elementId] ?? null %}
+                            {% if el %}
+                                <a href="{{ el.cpEditUrl }}">{{ el.title ?? el.id }}</a>
+                            {% else %}
+                                <span class="light">#{{ row.elementId ?? '—' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ row.ability|t('seclude') }}</td>
+                        <td class="light">{{ row.reason }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch">
+            <p>{{ "Nothing logged."|t('seclude') }}</p>
+            <p class="light">{{ "Refusal logging is off by default. Turn it on in the settings while rolling out a policy."|t('seclude') }}</p>
+        </div>
+    {% endif %}
+{% endblock %}

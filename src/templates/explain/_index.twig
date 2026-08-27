@@ -1,0 +1,172 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Who can edit what"|t('seclude') %}
+
+{% block content %}
+    <form method="get" action="{{ url('seclude/explain') }}" accept-charset="UTF-8">
+        <div class="flex">
+            <div style="min-width: 260px;">
+                {{ forms.elementSelect({
+                    id: 'userId',
+                    name: 'userId',
+                    elementType: 'craft\\elements\\User',
+                    elements: user ? [user] : [],
+                    limit: 1,
+                }) }}
+                <div class="light smalltext">{{ "User"|t('seclude') }}</div>
+            </div>
+            <div style="min-width: 160px;">
+                {{ forms.text({
+                    id: 'elementId',
+                    name: 'elementId',
+                    value: element ? element.id : null,
+                    placeholder: "Element ID"|t('seclude'),
+                    type: 'number',
+                }) }}
+                <div class="light smalltext">{{ "Element ID"|t('seclude') }}</div>
+            </div>
+            <div>
+                <button type="submit" class="btn submit">{{ "Explain"|t('seclude') }}</button>
+            </div>
+        </div>
+    </form>
+
+    <hr>
+
+    {% if report is null %}
+        <div class="zilch">
+            <p>{{ "Pick a user and an element."|t('seclude') }}</p>
+            <p class="light">
+                {{ "This walks the same path Seclude walks when it decides, and reports every step — including the policies that did not apply, and why not."|t('seclude') }}
+            </p>
+        </div>
+    {% else %}
+        <h2>{{ report.element.title ?? report.element.id }}</h2>
+
+        {% if report.redirected %}
+            <blockquote class="note">
+                <p>
+                    {{ "This is judged as {title} — a draft, a revision or a nested entry defers to the element that owns it."|t('seclude', { title: report.subject.title ?? report.subject.id }) }}
+                </p>
+            </blockquote>
+        {% endif %}
+
+        {% if report.exempt %}
+            <blockquote class="note warning">
+                <p><strong>{{ "Seclude does not govern this user."|t('seclude') }}</strong> {{ report.exemptReason }}</p>
+            </blockquote>
+        {% endif %}
+
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ "May they…"|t('seclude') }}</th>
+                    <th>{{ "Seclude says"|t('seclude') }}</th>
+                    <th>{{ "Because"|t('seclude') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ability, verdict in report.verdicts %}
+                    <tr>
+                        <td><strong>{{ ability|t('seclude') }}</strong></td>
+                        <td>
+                            {% if verdict.isDenied %}
+                                <span class="status off"></span> {{ verdict.outcomeLabel }}
+                            {% elseif verdict.isAllowed %}
+                                <span class="status enabled"></span> {{ verdict.outcomeLabel }}
+                            {% else %}
+                                <span class="status"></span> {{ verdict.outcomeLabel }}
+                            {% endif %}
+                        </td>
+                        <td class="light">{{ verdict.reason }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p class="light smalltext">
+            {{ "“Not governed” means Seclude has no opinion and Craft’s own permissions decide. Seclude never grants access — it only takes it away."|t('seclude') }}
+        </p>
+
+        <hr>
+
+        <h2>{{ "Policies"|t('seclude') }}</h2>
+
+        {% if report.policies|length %}
+            {% for row in report.policies %}
+                <div class="pane">
+                    <h3>
+                        <a href="{{ url('seclude/policies/' ~ row.policy.id) }}">{{ row.policy.name }}</a>
+                        {% if row.applies %}
+                            <span class="status enabled"></span> {{ "applies"|t('seclude') }}
+                        {% else %}
+                            <span class="status off"></span> {{ "does not apply"|t('seclude') }}
+                        {% endif %}
+                    </h3>
+
+                    {% if row.skipReason %}
+                        <p class="light">{{ row.skipReason }}</p>
+                    {% endif %}
+
+                    {% if row.unevaluable|length %}
+                        <ul class="errors">
+                            {% for reason in row.unevaluable %}<li>{{ reason }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if row.applies %}
+                        <p>
+                            {{ row.granted
+                                ? "This policy grants this element."|t('seclude')
+                                : "This policy governs this element but does not grant it."|t('seclude') }}
+                            {% if row.viaDescendants %}
+                                <span class="light">{{ "— through “include everything beneath”, not through a grant of its own."|t('seclude') }}</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+
+                    <table class="data fullwidth">
+                        <thead>
+                            <tr>
+                                <th>{{ "Grant"|t('seclude') }}</th>
+                                <th>{{ "Matches"|t('seclude') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for grant in row.grants %}
+                                <tr>
+                                    <td>
+                                        {{ grant.name }}
+                                        <div class="light smalltext">{{ grant.description }}</div>
+                                        {% if grant.unresolvable %}
+                                            <div class="error smalltext">{{ grant.unresolvable }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if grant.matched is null %}
+                                            <span class="light">{{ "not evaluated"|t('seclude') }}</span>
+                                        {% elseif grant.matched %}
+                                            <span class="status enabled"></span> {{ "yes"|t('seclude') }}
+                                        {% else %}
+                                            <span class="status off"></span> {{ "no"|t('seclude') }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr><td colspan="2" class="light">{{ "No grants."|t('seclude') }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <p class="light smalltext">
+                        {{ "Permits:"|t('seclude') }}
+                        {% for ability in row.abilities %}<span class="token"><span>{{ ability|t('seclude') }}</span></span>{% else %}{{ "nothing"|t('seclude') }}{% endfor %}
+                    </p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="light">{{ "No policy covers this element type at all."|t('seclude') }}</p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

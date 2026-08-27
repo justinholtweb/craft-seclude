@@ -1,0 +1,52 @@
+{% extends "_layouts/cp" %}
+
+{% set title = "Assignments"|t('seclude') %}
+
+{% block content %}
+    {% if not hasAssignmentPolicies %}
+        <div class="zilch">
+            <p>{{ "No policy hands out elements by name."|t('seclude') }}</p>
+            <p class="light">
+                {{ "Add the “Elements assigned to them” grant to a policy and its people will appear here. The other grants — authorship, relations, conditions — need no assigning; they follow the content."|t('seclude') }}
+            </p>
+        </div>
+    {% else %}
+        {% for row in rows %}
+            <h2>{{ row.policy.name }}</h2>
+            <p class="light">
+                {{ row.policy.scope.typeLabel }} · {{ row.policy.scope.describe|join(', ') }}
+                {% if not row.policy.enabled %} · <span class="error">{{ "Disabled"|t('seclude') }}</span>{% endif %}
+            </p>
+
+            {% if row.users|length %}
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>{{ "User"|t('seclude') }}</th>
+                            <th>{{ "Assigned"|t('seclude') }}</th>
+                            <th class="thin"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in row.users %}
+                            <tr>
+                                <td>{{ user.friendlyName ?? user.username }} <span class="light">{{ user.email }}</span></td>
+                                <td>
+                                    {% set n = row.counts[user.id] ?? 0 %}
+                                    {{ "{n, plural, =0{nothing yet} =1{one element} other{# elements}}"|t('seclude', { n: n }) }}
+                                </td>
+                                <td class="thin">
+                                    <a class="btn small" href="{{ url('seclude/assignments/' ~ row.policy.id ~ '/' ~ user.id) }}">
+                                        {{ "Edit"|t('app') }}
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="light">{{ "Nobody matches this policy yet."|t('seclude') }}</p>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endblock %}

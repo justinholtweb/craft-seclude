@@ -1,0 +1,98 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "Policies"|t('seclude') %}
+{% set fullPageForm = false %}
+
+{% block actionButton %}
+    <a href="{{ url('seclude/policies/new') }}" class="btn submit add icon">{{ "New policy"|t('seclude') }}</a>
+{% endblock %}
+
+{% block content %}
+    {% if unevaluable|length %}
+        <blockquote class="note warning">
+            <p>
+                {{ "{n, plural, =1{One enabled policy can’t be evaluated} other{# enabled policies can’t be evaluated}}, so {n, plural, =1{it is} other{they are}} not being enforced. Seclude never enforces a policy it can’t read — a stale section UID would otherwise lock out an entire team."|t('seclude', { n: unevaluable|length }) }}
+            </p>
+        </blockquote>
+    {% endif %}
+
+    {% if policies|length %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ "Policy"|t('seclude') }}</th>
+                    <th>{{ "Who"|t('seclude') }}</th>
+                    <th>{{ "Governs"|t('seclude') }}</th>
+                    <th>{{ "Grants"|t('seclude') }}</th>
+                    <th>{{ "May"|t('seclude') }}</th>
+                    <th class="thin"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for policy in policies %}
+                    {% set reasons = policy.unevaluableReasons %}
+                    <tr data-id="{{ policy.id }}">
+                        <td>
+                            <a href="{{ url('seclude/policies/' ~ policy.id) }}"><strong>{{ policy.name }}</strong></a>
+                            <div class="light code">{{ policy.handle }}</div>
+                            {% if not policy.enabled %}
+                                <span class="status off"></span> <span class="light">{{ "Disabled"|t('seclude') }}</span>
+                            {% elseif reasons|length %}
+                                <span class="status pending"></span>
+                                <span class="light">{{ "Not enforced"|t('seclude') }}</span>
+                                <div class="light smalltext">{{ reasons|join(' ') }}</div>
+                            {% else %}
+                                <span class="status enabled"></span> <span class="light">{{ "Enforced"|t('seclude') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ policy.subjects.describe|join(', ') ?: '—' }}</td>
+                        <td>
+                            <strong>{{ policy.scope.typeLabel }}</strong>
+                            <div class="light smalltext">{{ policy.scope.describe|join(', ') }}</div>
+                        </td>
+                        <td>
+                            <div class="light smalltext">
+                                {{ policy.describeGrants|join('<br>')|raw ?: '—' }}
+                                {% if policy.includeDescendants %}
+                                    <br>{{ "…and everything beneath them"|t('seclude') }}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% for ability in policy.abilities.granted %}
+                                <span class="token"><span>{{ abilityLabels[ability] ?? ability }}</span></span>
+                            {% else %}
+                                —
+                            {% endfor %}
+                        </td>
+                        <td class="thin">
+                            <a class="delete icon" title="{{ 'Delete'|t('app') }}" role="button"
+                               data-seclude-delete="{{ policy.id }}"></a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="zilch">
+            <p>{{ "No policies yet."|t('seclude') }}</p>
+            <p class="light">
+                {{ "Until you write one, Seclude changes nothing. It only governs the sections, groups and volumes a policy names."|t('seclude') }}
+            </p>
+            <p><a href="{{ url('seclude/policies/new') }}" class="btn submit">{{ "New policy"|t('seclude') }}</a></p>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% js %}
+document.querySelectorAll('[data-seclude-delete]').forEach(function(el) {
+    el.addEventListener('click', function() {
+        if (!confirm({{ "Delete this policy? Any hand-assignments made under it go too."|t('seclude')|json_encode|raw }})) {
+            return;
+        }
+        Craft.sendActionRequest('POST', 'seclude/policies/delete', { data: { id: el.dataset.secludeDelete } })
+            .then(function() { window.location.reload(); });
+    });
+});
+{% endjs %}

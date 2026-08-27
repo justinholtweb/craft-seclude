@@ -1,0 +1,76 @@
+{% import "_includes/forms" as forms %}
+
+{% if unevaluable|length %}
+    <div class="readable">
+        <blockquote class="note warning">
+            <p>
+                {{ "{n, plural, =1{One policy is} other{# policies are}} enabled but can’t be evaluated, so {n, plural, =1{it isn’t} other{they aren’t}} being enforced."|t('seclude', { n: unevaluable|length })|raw }}
+            </p>
+            <ul>
+                {% for policy in unevaluable %}
+                    <li>
+                        <a href="{{ url('seclude/policies/' ~ policy.id) }}">{{ policy.name }}</a> —
+                        {{ policy.unevaluableReasons|join(' ') }}
+                    </li>
+                {% endfor %}
+            </ul>
+        </blockquote>
+    </div>
+{% endif %}
+
+{{ forms.lightswitchField({
+    label: "Seclude admins"|t('seclude'),
+    instructions: "By default admins are never restricted, so there is always somebody who can undo a policy. Turning this on removes that guarantee."|t('seclude'),
+    warning: settings.secludeAdmins ? "Admins are currently subject to Seclude policies."|t('seclude'),
+    id: 'secludeAdmins',
+    name: 'secludeAdmins',
+    on: settings.secludeAdmins,
+}) }}
+
+{{ forms.lightswitchField({
+    label: "Assign new elements to their creator"|t('seclude'),
+    instructions: "When a restricted user creates something, hand it to them. Without this they would be locked out of their own work the moment they saved it."|t('seclude'),
+    id: 'adoptCreatedElements',
+    name: 'adoptCreatedElements',
+    on: settings.adoptCreatedElements,
+}) }}
+
+{{ forms.lightswitchField({
+    label: "Hide empty sources"|t('seclude'),
+    instructions: "Leave sections, category groups and volumes out of the sidebar when a restricted user has nothing in them."|t('seclude'),
+    id: 'hideEmptySources',
+    name: 'hideEmptySources',
+    on: settings.hideEmptySources,
+}) }}
+
+{{ forms.lightswitchField({
+    label: "Filter element pickers"|t('seclude'),
+    instructions: "Apply policies inside relation fields and link pickers too, not just index listings. Turn this off if Seclude is shaping editors’ workspaces rather than keeping content apart, and they still need to link to pages they cannot edit."|t('seclude'),
+    id: 'filterSelectionModals',
+    name: 'filterSelectionModals',
+    on: settings.filterSelectionModals,
+}) }}
+
+<hr>
+
+{{ forms.lightswitchField({
+    label: "Log refusals"|t('seclude'),
+    instructions: "Record what Seclude turned down. Useful while a policy is being rolled out; noisy afterwards."|t('seclude'),
+    id: 'logRefusals',
+    name: 'logRefusals',
+    on: settings.logRefusals,
+    toggle: 'log-settings',
+}) }}
+
+<div id="log-settings" class="{{ not settings.logRefusals ? 'hidden' }}">
+    {{ forms.textField({
+        label: "Keep refusals for"|t('seclude'),
+        instructions: "Days. Older rows are removed by Craft’s garbage collection."|t('seclude'),
+        id: 'logRetentionDays',
+        name: 'logRetentionDays',
+        value: settings.logRetentionDays,
+        size: 5,
+        type: 'number',
+        min: 1,
+    }) }}
+</div>

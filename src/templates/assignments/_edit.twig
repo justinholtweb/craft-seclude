@@ -1,0 +1,36 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set title = "#{user.friendlyName ?? user.username} — #{policy.name}" %}
+{% set fullPageForm = true %}
+{% set crumbs = [
+    { label: "Seclude"|t('seclude'), url: url('seclude/policies') },
+    { label: "Assignments"|t('seclude'), url: url('seclude/assignments') },
+] %}
+
+{% block content %}
+    <input type="hidden" name="action" value="seclude/assignments/save">
+    <input type="hidden" name="policyId" value="{{ policy.id }}">
+    <input type="hidden" name="userId" value="{{ user.id }}">
+
+    <p class="light">
+        {{ "These are handed over by name. Anything this user reaches through the policy’s other grants — authorship, a relation, a condition, a structure branch — is not listed here and does not need to be."|t('seclude') }}
+    </p>
+
+    {{ forms.elementSelectField({
+        label: policy.scope.typeLabel,
+        id: 'elementIds',
+        name: 'elementIds',
+        elementType: policy.scope.elementType,
+        elements: elements,
+        sources: sources,
+        limit: null,
+        showSiteMenu: true,
+    }) }}
+
+    {% if not policy.abilities.view %}
+        <blockquote class="note warning">
+            <p>{{ "This policy doesn’t permit viewing, so an assignment here grants nothing visible."|t('seclude') }}</p>
+        </blockquote>
+    {% endif %}
+{% endblock %}

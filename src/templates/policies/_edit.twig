@@ -1,0 +1,260 @@
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% set fullPageForm = true %}
+{% set crumbs = [
+    { label: "Seclude"|t('seclude'), url: url('seclude/policies') },
+    { label: "Policies"|t('seclude'), url: url('seclude/policies') },
+] %}
+
+{% block content %}
+    <input type="hidden" name="action" value="seclude/policies/save">
+    <input type="hidden" name="policyId" value="{{ policy.id }}">
+    {{ redirectInput('seclude/policies') }}
+
+    {{ forms.textField({
+        first: true,
+        label: "Name"|t('app'),
+        id: 'name',
+        name: 'name',
+        value: policy.name,
+        errors: policy.getErrors('name'),
+        autofocus: true,
+        required: true,
+    }) }}
+
+    {{ forms.textField({
+        label: "Handle"|t('app'),
+        id: 'handle',
+        name: 'handle',
+        class: 'code',
+        autocorrect: false,
+        autocapitalize: false,
+        value: policy.handle,
+        errors: policy.getErrors('handle'),
+        required: true,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: "Enabled"|t('app'),
+        id: 'enabled',
+        name: 'enabled',
+        on: policy.enabled,
+    }) }}
+
+    <hr>
+
+    <h2>{{ "Who this applies to"|t('seclude') }}</h2>
+    <p class="light">{{ "Anyone named here is restricted inside this policy’s scope. Admins are exempt unless the settings say otherwise."|t('seclude') }}</p>
+
+    {{ forms.lightswitchField({
+        label: "Everyone"|t('seclude'),
+        instructions: "Apply to every user with control panel access. Rare — and it means exactly what it says."|t('seclude'),
+        id: 'subjects-allUsers',
+        name: 'subjects[allUsers]',
+        on: policy.subjects.allUsers,
+        toggle: '!subjects-specific',
+        errors: policy.getErrors('subjects'),
+    }) }}
+
+    <div id="subjects-specific" class="{{ policy.subjects.allUsers ? 'hidden' }}">
+        {{ forms.checkboxSelectField({
+            label: "User groups"|t('seclude'),
+            id: 'subjects-userGroupUids',
+            name: 'subjects[userGroupUids]',
+            options: userGroupOptions,
+            values: policy.subjects.userGroupUids,
+            showAllOption: false,
+        }) }}
+
+        {{ forms.elementSelectField({
+            label: "Specific users"|t('seclude'),
+            instructions: "For the one contractor who isn’t worth a group of their own."|t('seclude'),
+            id: 'subjects-users',
+            name: 'subjects[users]',
+            elementType: 'craft\\elements\\User',
+            elements: policy.subjects.userUids ? craft.users().uid(policy.subjects.userUids).status(null).all() : [],
+            limit: null,
+        }) }}
+    </div>
+
+    <hr>
+
+    <h2>{{ "What it governs"|t('seclude') }}</h2>
+    <p class="light">{{ "Outside this scope, Seclude stays silent and Craft’s own permissions decide. Leave the sources empty to cover everything of that type, including whatever is added later."|t('seclude') }}</p>
+
+    {{ forms.selectField({
+        label: "Element type"|t('seclude'),
+        id: 'scope-type',
+        name: 'scope[type]',
+        options: scopeTypeOptions,
+        value: policy.scope.type,
+        errors: policy.getErrors('scope'),
+        toggle: true,
+        targetPrefix: 'scope-sources-',
+    }) }}
+
+    {% for type in scopeTypes %}
+        <div id="scope-sources-{{ type }}" class="{{ policy.scope.type != type ? 'hidden' }}">
+            {{ forms.checkboxSelectField({
+                label: {
+                    entries: "Sections"|t('seclude'),
+                    categories: "Category groups"|t('seclude'),
+                    assets: "Volumes"|t('seclude'),
+                    users: "User groups"|t('seclude'),
+                }[type],
+                instructions: "Leave all unchecked to govern every one of them."|t('seclude'),
+                id: 'scope-sourceUids-' ~ type,
+                name: 'scope[sourceUids][' ~ type ~ ']',
+                options: sourceOptions[type],
+                values: policy.scope.type == type ? policy.scope.sourceUids : [],
+                showAllOption: false,
+            }) }}
+
+            {% if type == 'entries' %}
+                {{ forms.checkboxSelectField({
+                    label: "Entry types"|t('seclude'),
+                    instructions: "Optional. Narrow further to particular entry types."|t('seclude'),
+                    id: 'scope-entryTypeUids',
+                    name: 'scope[entryTypeUids]',
+                    options: entryTypeOptions,
+                    values: policy.scope.entryTypeUids,
+                    showAllOption: false,
+                }) }}
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <hr>
+
+    <h2>{{ "What they get"|t('seclude') }}</h2>
+    <p class="light">{{ "Grants add together. An element inside the scope that no grant reaches is hidden and refused."|t('seclude') }}</p>
+
+    {% if policy.getErrors('grants')|length %}
+        <ul class="errors">
+            {% for error in policy.getErrors('grants') %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    {% set active = {} %}
+    {% for grant in policy.grants %}{% set active = active|merge({ (grant.type): grant }) %}{% endfor %}
+
+    <div class="seclude-grants">
+        {% for type, option in grantOptions %}
+            {% set grant = active[type] ?? null %}
+            <div class="seclude-grant">
+                {{ forms.lightswitchField({
+                    label: option.label,
+                    id: 'grants-' ~ type,
+                    name: 'grants[' ~ type ~ '][enabled]',
+                    on: grant is not null,
+                    toggle: 'grant-config-' ~ type,
+                }) }}
+
+                <div id="grant-config-{{ type }}" class="{{ grant is null ? 'hidden' }}" style="padding-left: 24px;">
+                    {% if type == 'assigned' %}
+                        <p class="light">
+                            {{ "Elements picked for each user by hand, on the Assignments screen. Save this policy first, then assign."|t('seclude') }}
+                        </p>
+                    {% elseif type == 'author' %}
+                        <p class="light">
+                            {{ "Entries they are an author of, or assets they uploaded. Categories and users have no author."|t('seclude') }}
+                        </p>
+                    {% elseif type == 'relation' %}
+                        {{ forms.selectField({
+                            label: "How"|t('seclude'),
+                            id: 'grants-relation-mode',
+                            name: 'grants[relation][mode]',
+                            options: [
+                                { label: "The element’s field points at them"|t('seclude'), value: 'direct' },
+                                { label: "The element’s field and their own field point at the same thing"|t('seclude'), value: 'shared' },
+                            ],
+                            value: grant ? grant.mode : 'direct',
+                            toggle: true,
+                            targetPrefix: 'relation-mode-',
+                        }) }}
+
+                        {{ forms.selectField({
+                            label: "Field on the element"|t('seclude'),
+                            id: 'grants-relation-fieldUid',
+                            name: 'grants[relation][fieldUid]',
+                            options: [{ label: "Choose a field"|t('seclude'), value: '' }]|merge(relationFieldOptions),
+                            value: grant ? grant.fieldUid : null,
+                        }) }}
+
+                        <div id="relation-mode-shared" class="{{ (grant and grant.mode == 'shared') ? '' : 'hidden' }}">
+                            {{ forms.selectField({
+                                label: "Field on the user"|t('seclude'),
+                                instructions: "Both fields must relate to the same kind of element — a Region, a Client, a Team."|t('seclude'),
+                                id: 'grants-relation-userFieldUid',
+                                name: 'grants[relation][userFieldUid]',
+                                options: [{ label: "Choose a field"|t('seclude'), value: '' }]|merge(relationFieldOptions),
+                                value: grant ? grant.userFieldUid : null,
+                            }) }}
+                        </div>
+                        <div id="relation-mode-direct"></div>
+                    {% elseif type == 'condition' %}
+                        {% if conditionBuilderHtml %}
+                            {{ conditionBuilderHtml|raw }}
+                        {% else %}
+                            <p class="light">
+                                {{ "Save the policy once and come back — the condition builder is built for a particular element type, and this policy’s type isn’t settled yet."|t('seclude') }}
+                            </p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <hr>
+
+    {{ forms.lightswitchField({
+        label: "Include everything beneath"|t('seclude'),
+        instructions: "For structures. Granting a page grants its children too, including ones written after the grant was made."|t('seclude'),
+        id: 'includeDescendants',
+        name: 'includeDescendants',
+        on: policy.includeDescendants,
+        toggle: 'descendant-depth',
+    }) }}
+
+    <div id="descendant-depth" class="{{ not policy.includeDescendants ? 'hidden' }}">
+        {{ forms.textField({
+            label: "Levels"|t('seclude'),
+            instructions: "How far down. Leave empty for the whole branch."|t('seclude'),
+            id: 'descendantDepth',
+            name: 'descendantDepth',
+            value: policy.descendantDepth,
+            size: 5,
+            type: 'number',
+            min: 1,
+        }) }}
+    </div>
+
+    <hr>
+
+    <h2>{{ "What they may do"|t('seclude') }}</h2>
+    <p class="light">
+        {{ "Seclude can only take away. These narrow what Craft’s own section permissions already allow — they never add to them."|t('seclude') }}
+    </p>
+
+    {% if policy.getErrors('abilities')|length %}
+        <ul class="errors">
+            {% for error in policy.getErrors('abilities') %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    {% for ability in abilityOptions %}
+        {{ forms.lightswitchField({
+            label: ability.label,
+            instructions: ability.description,
+            id: 'abilities-' ~ ability.value,
+            name: 'abilities[' ~ ability.value ~ ']',
+            on: policy.abilities.allows(ability.value),
+        }) }}
+    {% endfor %}
+{% endblock %}
+
+{% js %}
+new Craft.HandleGenerator('#name', '#handle');
+{% endjs %}
