@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#ffffff" fill-rule="evenodd">
+  <!-- The folding screen from src/icon.svg on its own: no tile, windows still punched out. -->
+  <path d="M36,22 L16,27 V73 L36,78 Z M32,29 L20,32 V45 L32,43.5 Z"/>
+  <path d="M42,20 H58 A3,3 0 0 1 61,23 V77 A3,3 0 0 1 58,80 H42 A3,3 0 0 1 39,77 V23 A3,3 0 0 1 42,20 Z M44.5,44 V32 A5.5,5.5 0 0 1 55.5,32 V44 Z"/>
+  <path d="M64,22 L84,27 V73 L64,78 Z M68,29 L80,32 V45 L68,43.5 Z"/>
+</svg>

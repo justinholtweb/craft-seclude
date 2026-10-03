@@ -139,6 +139,12 @@
     {% set active = {} %}
     {% for grant in policy.grants %}{% set active = active|merge({ (grant.type): grant }) %}{% endfor %}
 
+    {% css %}
+        .seclude-grant + .seclude-grant { margin-top: 18px; }
+        .seclude-grant-config { padding-left: 24px; margin-top: 6px; }
+        .seclude-grant-config > p { margin: 0; }
+    {% endcss %}
+
     <div class="seclude-grants">
         {% for type, option in grantOptions %}
             {% set grant = active[type] ?? null %}
@@ -151,7 +157,7 @@
                     toggle: 'grant-config-' ~ type,
                 }) }}
 
-                <div id="grant-config-{{ type }}" class="{{ grant is null ? 'hidden' }}" style="padding-left: 24px;">
+                <div id="grant-config-{{ type }}" class="seclude-grant-config {{ grant is null ? 'hidden' }}">
                     {% if type == 'assigned' %}
                         <p class="light">
                             {{ "Elements picked for each user by hand, on the Assignments screen. Save this policy first, then assign."|t('seclude') }}

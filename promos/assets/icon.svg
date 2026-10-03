@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Plugin Store icon. Rounded tile in the plugin's accent, mark in #FEFEFE — the shape the rest of
+  the family uses, so a row of these in the Plugin Store reads as one shelf.
+
+  The mark is a three-panel folding screen, the thing you stand around part of a room to keep it
+  apart from the rest — which is Seclude's whole job. The wings recede in perspective so it reads
+  as a screen and not as three doors, and each panel's window is punched out with
+  fill-rule="evenodd" rather than drawn in a second colour, so the mark stays one white mass at 32px.
+
+  Each panel is its own element. Under evenodd, overlapping subpaths of one path cancel out; separate
+  elements simply union. icon-mask.svg is these three paths alone, in black, with no tile.
+
+  The accent, #6B5B7B, is a dusk mauve chosen to sit clear of the indigo cluster (Bed, Glue, and
+  four others within a few degrees of each other).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Seclude">
+  <!-- Rounded tile: 22.44% radius, matching the rest of the plugin family -->
+  <rect x="0" y="0" width="100" height="100" rx="22.44" fill="#6B5B7B"/>
+  <!-- Left wing, receding, with its window -->
+  <path fill="#FEFEFE" fill-rule="evenodd" d="M36,22 L16,27 V73 L36,78 Z M32,29 L20,32 V45 L32,43.5 Z"/>
+  <!-- Centre panel, with an arched window -->
+  <path fill="#FEFEFE" fill-rule="evenodd" d="M42,20 H58 A3,3 0 0 1 61,23 V77 A3,3 0 0 1 58,80 H42 A3,3 0 0 1 39,77 V23 A3,3 0 0 1 42,20 Z M44.5,44 V32 A5.5,5.5 0 0 1 55.5,32 V44 Z"/>
+  <!-- Right wing, mirrored -->
+  <path fill="#FEFEFE" fill-rule="evenodd" d="M64,22 L84,27 V73 L64,78 Z M68,29 L80,32 V45 L68,43.5 Z"/>
+</svg>

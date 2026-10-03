@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<!-- handmade: hand-tuned deck -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Seclude — Plugin Store promos</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Mauve from the icon tile (#6B5B7B), a lighter lilac for text accents, and a warm sand for
+     the one thing on each slide that should catch the eye. */
+  :root {
+    --ink: #110e15;
+    --ink-light: #1b1621;
+    --ink-lighter: #2a2232;
+    --accent: #6B5B7B;
+    --accent-light: #B9A7CC;
+    --sand: #E3C9A8;
+    --green: #4ade80;
+    --red: #ff8f7e;
+    --off-white: #f3f0f6;
+  }
+
+  html { background: #000; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: var(--off-white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- slide shell ---------------------------------------------------- */
+  .slide {
+    position: relative;
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 85% 15%, rgba(107, 91, 123, 0.34) 0%, transparent 40%),
+      radial-gradient(ellipse at 65% 5%,  rgba(185, 167, 204, 0.12) 0%, transparent 35%),
+      radial-gradient(ellipse at 15% 85%, rgba(227, 201, 168, 0.06) 0%, transparent 40%),
+      radial-gradient(ellipse at 35% 95%, rgba(107, 91, 123, 0.12) 0%, transparent 35%),
+      linear-gradient(135deg, #110e15 0%, #18131d 30%, #201a27 60%, #110e15 100%);
+  }
+
+  /* Oversized watermark: the folding screen alone, no tile (a tile at this scale is a hard-edged
+     box across the slide). First render at 0.022 and left -18% put three solid panels and their
+     windows squarely behind every headline — the panels are large flat areas, not a line
+     drawing. Pushed off the left edge so only the right-hand wing carries, and faded to 0.012. */
+  .slide::after {
+    content: '';
+    position: absolute;
+    top: -6%;
+    left: -34%;
+    width: 1000px;
+    height: 1000px;
+    background: url('assets/watermark.svg') no-repeat center / contain;
+    opacity: 0.012;
+    pointer-events: none;
+  }
+
+  /* Hairline along the top edge */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-light), var(--sand), var(--accent));
+    z-index: 5;
+  }
+
+  .inner {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 118px 130px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ---- type ------------------------------------------------------------ */
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: rgba(243, 240, 246, 0.62);
+    margin-bottom: 34px;
+  }
+  .eyebrow .rule {
+    width: 58px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent-light);
+  }
+
+  h1, h2 {
+    font-family: 'Jersey 20', sans-serif;
+    font-weight: 400;
+    line-height: 0.9;
+    letter-spacing: 0.005em;
+  }
+
+  .gradient-text {
+    background: linear-gradient(100deg, #9C88B0 0%, #B9A7CC 38%, #E3C9A8 70%, #9C88B0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .lede {
+    font-size: 34px;
+    line-height: 1.5;
+    color: rgba(243, 240, 246, 0.72);
+  }
+
+  .mono { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+
+  /* ---- cover slide ----------------------------------------------------- */
+  .cover .inner { gap: 90px; }
+  .cover .copy { flex: 1 1 auto; }
+  .cover h1 { font-size: 210px; margin-bottom: 26px; }
+  .cover .tagline {
+    font-family: 'Jersey 20', sans-serif;
+    font-size: 60px;
+    line-height: 1.02;
+    color: var(--off-white);
+    margin-bottom: 40px;
+    max-width: 17ch;
+  }
+  .cover .lede { max-width: 30ch; font-size: 30px; }
+
+  .cover .mark {
+    flex: 0 0 auto;
+    width: 440px;
+    height: 440px;
+    filter: drop-shadow(14px 14px 0 rgba(0, 0, 0, 0.35));
+  }
+  .cover .mark img { width: 100%; height: 100%; display: block; }
+
+  .badges { display: flex; gap: 16px; margin-top: 52px; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 26px;
+    font-size: 22px;
+    font-weight: 500;
+    color: rgba(243, 240, 246, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+  }
+  .badge .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-light); }
+  .badge.price .dot { background: var(--sand); }
+
+  /* ---- the before/after statement -------------------------------------- */
+  .statement .inner { flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+  .statement .eyebrow { justify-content: center; }
+  .swap { display: flex; flex-direction: column; align-items: center; gap: 22px; margin-top: 8px; }
+  .swap .caption {
+    font-size: 26px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(243, 240, 246, 0.42);
+  }
+  .swap .before {
+    font-family: 'Jersey 20', sans-serif;
+    font-size: 64px;
+    white-space: nowrap;
+    color: rgba(243, 240, 246, 0.34);
+  }
+  .swap .arrow {
+    width: 4px;
+    height: 62px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, rgba(185,167,204,0.15), var(--accent-light));
+    position: relative;
+  }
+  .swap .arrow::after {
+    content: '';
+    position: absolute;
+    left: 50%; bottom: -4px;
+    width: 18px; height: 18px;
+    transform: translateX(-50%) rotate(45deg);
+    border-right: 4px solid var(--accent-light);
+    border-bottom: 4px solid var(--accent-light);
+    border-radius: 2px;
+  }
+  .swap .after {
+    font-family: 'Jersey 20', sans-serif;
+    font-size: 104px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .statement .lede { margin-top: 44px; max-width: 46ch; font-size: 31px; }
+
+  /* ---- feature slides -------------------------------------------------- */
+  .feature .copy { width: 780px; flex: 0 0 780px; }
+  .feature h2 { font-size: 108px; margin-bottom: 30px; }
+  .feature .lede { max-width: 22ch; }
+
+  .points {
+    list-style: none;
+    margin-top: 44px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  /* One line per point — about 55 characters at 25px in a 780px column. A second line runs at
+     the panel, which starts at left: 900px. Text sits in one .t so inline children don't become
+     separate flex items. */
+  .points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    font-size: 25px;
+    line-height: 1.4;
+    color: rgba(243, 240, 246, 0.6);
+  }
+  .points li .tick {
+    flex: 0 0 auto;
+    margin-top: 9px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent-light);
+  }
+  .points li .t { flex: 1 1 auto; }
+
+  .panel {
+    position: absolute;
+    top: 50%;
+    left: 900px;
+    right: 130px;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .card {
+    padding: 26px 34px;
+    border-radius: 16px;
+    background: rgba(42, 34, 50, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .card .label {
+    font-size: 19px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent-light);
+    margin-bottom: 10px;
+  }
+  .card .said { font-size: 29px; color: var(--off-white); margin-bottom: 8px; }
+  .card .said b { color: var(--sand); font-weight: 400; }
+  .card .also { font-size: 21px; line-height: 1.45; color: rgba(243, 240, 246, 0.46); }
+
+  /* ---- verdicts (slide 3) ------------------------------------------------ */
+  .verdict { display: flex; align-items: center; gap: 28px; }
+  .verdict .v {
+    flex: 0 0 210px;
+    font-size: 19px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .verdict .v.no { color: var(--red); }
+  .verdict .v.quiet { color: rgba(243, 240, 246, 0.55); }
+  .verdict .v.yes { color: var(--green); }
+  .verdict .body { flex: 1 1 auto; }
+  .verdict.never { border-color: rgba(227, 201, 168, 0.45); background: rgba(107, 91, 123, 0.22); }
+  .verdict.never .said { color: var(--sand); }
+
+  /* ---- abilities (slide 5) ----------------------------------------------- */
+  .abilities { display: flex; flex-wrap: wrap; gap: 14px; }
+  .ability {
+    flex: 1 1 calc(50% - 7px);
+    padding: 22px 28px;
+    border-radius: 14px;
+    background: rgba(42, 34, 50, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .ability .name { font-size: 27px; color: var(--off-white); margin-bottom: 6px; }
+  .ability .does { font-size: 20px; line-height: 1.4; color: rgba(243, 240, 246, 0.46); }
+  .ability.star {
+    flex-basis: 100%;
+    border-color: rgba(227, 201, 168, 0.45);
+    background: rgba(107, 91, 123, 0.22);
+  }
+  .ability.star .name { color: var(--sand); }
+  .ability.star .does { color: rgba(243, 240, 246, 0.72); font-size: 22px; }
+
+  /* ---- footer lockup --------------------------------------------------- */
+  .footer {
+    position: absolute;
+    left: 130px;
+    bottom: 62px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    color: rgba(243, 240, 246, 0.4);
+  }
+  .footer img { width: 40px; height: 40px; border-radius: 9px; }
+  .footer b { color: rgba(243, 240, 246, 0.72); font-weight: 600; }
+
+  /* Only render the requested slide when screenshotting */
+  body.single .slide { display: none; }
+  body.single .slide.active { display: block; }
+
+  /* ---- control-panel screenshot cards (shared family pattern) ---------- */
+  .slide.cpcard { display: block; }
+  body.single .slide.cpcard { display: none; }
+  body.single .slide.cpcard.active { display: block; }
+  .cpcard .cpc-inner {
+    position: relative;
+    z-index: 2;
+    height: 100%;
+    padding: 112px 120px;
+    display: flex;
+    align-items: center;
+    gap: 70px;
+  }
+  .cpcard .cpc-copy { width: 580px; flex: 0 0 580px; }
+  .cpcard .cpc-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 34px;
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent-light);
+  }
+  .cpcard .cpc-eyebrow i { display: block; width: 62px; height: 3px; background: var(--accent-light); border-radius: 2px; }
+  .cpcard .cpc-h2 {
+    font-family: 'Jersey 20', 'Inter', sans-serif;
+    font-size: 88px;
+    line-height: 0.96;
+    font-weight: 400;
+    margin: 0 0 28px;
+    color: var(--off-white);
+  }
+  .cpcard .cpc-lede { font-size: 32px; line-height: 1.42; color: rgba(243, 240, 246, 0.66); }
+  .cpcard .cpc-points { list-style: none; margin: 36px 0 0; padding: 0; }
+  .cpcard .cpc-points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    font-size: 25px;
+    line-height: 1.45;
+    color: rgba(243, 240, 246, 0.66);
+    margin-bottom: 14px;
+  }
+  .cpcard .cpc-points li::before {
+    content: '';
+    flex: 0 0 auto;
+    width: 10px; height: 10px;
+    margin-top: 13px;
+    border-radius: 50%;
+    background: var(--accent-light);
+  }
+  .cpcard .cpc-panel { flex: 1 1 auto; min-width: 0; }
+  .cpcard .cpc-frame {
+    border-radius: 14px;
+    overflow: hidden;
+    background: #e4edf6;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+  }
+  .cpcard .cpc-chrome {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 13px 18px;
+    background: linear-gradient(180deg, #2a2a3d 0%, #21212f 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+  }
+  .cpcard .cpc-chrome b { width: 12px; height: 12px; border-radius: 50%; }
+  .cpcard .cpc-chrome b:nth-child(1) { background: #ff5f57; }
+  .cpcard .cpc-chrome b:nth-child(2) { background: #febc2e; }
+  .cpcard .cpc-chrome b:nth-child(3) { background: #28c840; }
+  .cpcard .cpc-chrome em { margin-left: 12px; font-style: normal; font-size: 19px; color: rgba(243, 240, 246, 0.45); }
+  .cpcard .cpc-frame img { display: block; width: 100%; height: auto; }
+  .cpcard .cpc-caption {
+    display: block;
+    margin-top: 20px;
+    font-size: 22px;
+    line-height: 1.45;
+    color: rgba(243, 240, 246, 0.52);
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 · Cover ============================================================ -->
+<section class="slide cover" data-n="1">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Craft CMS 5</div>
+      <h1 class="gradient-text">Seclude</h1>
+      <p class="tagline">Permissions down to the single&nbsp;entry.</p>
+      <p class="lede">Restrict an editor to individual entries, categories, assets and users — not
+        whole sections. By hand, or by rules that follow authorship, relations and structure.</p>
+      <div class="badges">
+        <span class="badge price"><span class="dot"></span> Free</span>
+        <span class="badge">Craft 5.3+ · PHP 8.2+ · no build step</span>
+      </div>
+    </div>
+    <div class="mark"><img src="assets/icon.svg" alt=""></div>
+  </div>
+</section>
+
+<!-- 2 · The whole idea ==================================================== -->
+<section class="slide statement" data-n="2">
+  <div class="inner">
+    <div class="eyebrow"><span class="rule"></span> The whole idea</div>
+    <div class="swap">
+      <span class="caption">What Craft can say</span>
+      <span class="before">Jane may edit the News section</span>
+      <span class="arrow"></span>
+      <span class="caption">What Seclude can say</span>
+      <span class="after gradient-text">Jane may edit these three News entries</span>
+    </div>
+    <p class="lede">Craft's permissions stop at the container. Seclude carries them the rest of the
+      way, to the element — the job Isolate did on Craft 3 and 4, rebuilt for Craft 5.</p>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Seclude</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-seclude</div>
+</section>
+
+<!-- 3 · It can only take away ============================================= -->
+<section class="slide feature" data-n="3">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Safe on a live site</div>
+      <h2>It can only<br>take away</h2>
+      <p class="lede">Seclude narrows what Craft already allows. It never grants anything.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">Switching it on cannot widen anybody's access</span></li>
+        <li><span class="tick"></span><span class="t">Sections no policy names are left exactly as they were</span></li>
+        <li><span class="tick"></span><span class="t">A policy it can't read is disabled and reported</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="card verdict">
+      <span class="v no">Refused</span>
+      <div class="body">
+        <div class="said">Inside a policy, <b>no grant</b> reaches it</div>
+        <div class="also">Hidden from the index and refused on the edit page.</div>
+      </div>
+    </div>
+    <div class="card verdict">
+      <span class="v quiet">Not governed</span>
+      <div class="body">
+        <div class="said">No policy names this user here</div>
+        <div class="also">Seclude has no opinion. Craft's own permissions decide.</div>
+      </div>
+    </div>
+    <div class="card verdict">
+      <span class="v yes">Permitted</span>
+      <div class="body">
+        <div class="said">A policy grants it</div>
+        <div class="also">Only as far as Craft's section permissions already allow.</div>
+      </div>
+    </div>
+    <div class="card verdict never">
+      <span class="v quiet">Never</span>
+      <div class="body">
+        <div class="said">More than Craft would have allowed</div>
+        <div class="also">Seclude only ever answers “no”, or stays out of it.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Seclude</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-seclude</div>
+</section>
+
+<!-- 4 · Grants ============================================================ -->
+<section class="slide feature" data-n="4">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> Which elements</div>
+      <h2>Four ways<br>to say<br>"these ones"</h2>
+      <p class="lede">Grants add together. Anything in scope that no grant reaches is refused.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">Policies live in project config and deploy with it</span></li>
+        <li><span class="tick"></span><span class="t">Hand-assignments stay in the database, per environment</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="card">
+      <div class="label">Assigned</div>
+      <div class="said">Picked <b>by hand</b>, per user</div>
+    </div>
+    <div class="card">
+      <div class="label">Authorship</div>
+      <div class="said">Entries <b>they wrote</b></div>
+    </div>
+    <div class="card">
+      <div class="label">Relation</div>
+      <div class="said">Entry → <b>Region</b> ← Jane</div>
+      <div class="also">Both point at the same thing. Multi-tenancy in two dropdowns.</div>
+    </div>
+    <div class="card">
+      <div class="label">Condition</div>
+      <div class="said">Anything Craft's <b>condition builder</b> can say</div>
+    </div>
+    <div class="card">
+      <div class="label">…and everything beneath them</div>
+      <div class="said">Grant a page, get its <b>whole branch</b></div>
+      <div class="also">Including pages written later. Depth-limitable.</div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Seclude</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-seclude</div>
+</section>
+
+<!-- 5 · Abilities ========================================================= -->
+<section class="slide feature" data-n="5">
+  <div class="inner">
+    <div class="copy">
+      <div class="eyebrow"><span class="rule"></span> What they may do</div>
+      <h2>Suggest,<br>don't<br>publish</h2>
+      <p class="lede">Six abilities per policy, all off until you name them.</p>
+      <ul class="points">
+        <li><span class="tick"></span><span class="t">What they create is assigned to them automatically</span></li>
+        <li><span class="tick"></span><span class="t">Drafts and Matrix blocks follow the entry they belong to</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="abilities">
+      <div class="ability"><div class="name">View</div><div class="does">Open it and read it</div></div>
+      <div class="ability"><div class="name">Edit</div><div class="does">Save changes, publish drafts</div></div>
+      <div class="ability"><div class="name">Create</div><div class="does">Add new elements in scope</div></div>
+      <div class="ability"><div class="name">Delete</div><div class="does">Remove it</div></div>
+      <div class="ability"><div class="name">Duplicate</div><div class="does">Copy it into a new one</div></div>
+      <div class="ability"><div class="name">Propose changes</div><div class="does">Start a draft</div></div>
+      <div class="ability star">
+        <div class="name">Propose without Edit</div>
+        <div class="does">Drafts can be made and never published — the editorial arrangement people ask
+          for most, expressed exactly the way Craft does.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Seclude</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-seclude</div>
+</section>
+
+<!-- 6 · The index, as Jane ================================================ -->
+<section class="slide cpcard" data-n="6">
+  <div class="cpc-inner">
+    <div class="cpc-copy">
+      <div class="cpc-eyebrow"><i></i> In the control panel</div>
+      <h2 class="cpc-h2">Titles<br>don't leak</h2>
+      <p class="cpc-lede">What a refused editor can't open, they don't see listed either.</p>
+      <ul class="cpc-points">
+        <li>Indexes, counts and exports are filtered</li>
+        <li>So are relation fields and link pickers</li>
+        <li>Empty sections drop out of the sidebar</li>
+      </ul>
+    </div>
+    <div class="cpc-panel">
+      <figure class="cpc-frame">
+        <div class="cpc-chrome"><b></b><b></b><b></b><em>Entries — signed in as Jane</em></div>
+        <img src="shots/deck/seclude-index.png" alt="">
+      </figure>
+      <span class="cpc-caption">A section of twelve entries, listed for an editor who has been handed three of them</span>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Seclude</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-seclude</div>
+</section>
+
+<!-- 7 · Who can edit what ================================================= -->
+<section class="slide cpcard" data-n="7">
+  <div class="cpc-inner">
+    <div class="cpc-copy">
+      <div class="cpc-eyebrow"><i></i> Who can edit what</div>
+      <h2 class="cpc-h2">Every answer<br>explains itself</h2>
+      <p class="cpc-lede">Pick a user and an element. Every ability, every policy, and why.</p>
+      <ul class="cpc-points">
+        <li>Including the policies that didn't apply</li>
+        <li>The same report from the console</li>
+      </ul>
+    </div>
+    <div class="cpc-panel">
+      <figure class="cpc-frame">
+        <div class="cpc-chrome"><b></b><b></b><b></b><em>Seclude — who can edit what</em></div>
+        <img src="shots/deck/seclude-explain.png" alt="">
+      </figure>
+      <span class="cpc-caption">Why Jane can create entries in the section but can't open the Q3 roadmap</span>
+    </div>
+  </div>
+  <div class="footer"><img src="assets/icon.svg" alt=""> <b>Seclude</b> &nbsp;·&nbsp; justinholt.com/plugins/craft-seclude</div>
+</section>
+
+<script>
+  var n = new URLSearchParams(location.search).get('s');
+  if (n) {
+    document.body.classList.add('single');
+    var el = document.querySelector('.slide[data-n="' + n + '"]');
+    if (el) el.classList.add('active');
+  }
+</script>
+</body>
+</html>
