@@ -1,24 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Control-panel nav icon: a folding screen, the thing you put around part of a room to keep one
-  part of it apart from the rest — which is Seclude's whole job, and reads at 16px because it is
-  three shapes and nothing else.
+  Control-panel nav mask: the folding screen from icon.svg on its own, black on transparent, no
+  tile. Craft recolours this itself; a stroke or a fill of anything but black comes out wrong in the
+  nav.
 
-  Black on transparent, no tile. Craft recolours this itself; a stroke or a fill of anything but
-  black comes out wrong in the nav.
+  The geometry is lifted verbatim from icon.svg — the same three paths, the windows still punched
+  out with fill-rule="evenodd". Two icons that drift apart is how a plugin ends up unrecognisable
+  between the store listing and the nav.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <g fill="#000000" fill-rule="evenodd">
-    <!-- Left panel, hinged back -->
-    <path d="M12 26.5a2 2 0 0 1 2.6-1.9l17 5.2a2 2 0 0 1 1.4 1.9V86a2 2 0 0 1-2.6 1.9l-17-5.2A2 2 0 0 1 12 80.8V26.5Zm5 3.7v49.4l12 3.7V33.9l-12-3.7Z"/>
-
-    <!-- Centre panel, face on and nearest -->
-    <path d="M37 24a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v66a2 2 0 0 1-2 2H39a2 2 0 0 1-2-2V24Zm5 3v60h16V27H42Z"/>
-
-    <!-- Right panel, hinged back -->
-    <path d="M88 26.5a2 2 0 0 0-2.6-1.9l-17 5.2a2 2 0 0 0-1.4 1.9V86a2 2 0 0 0 2.6 1.9l17-5.2a2 2 0 0 0 1.4-1.9V26.5Zm-5 3.7v49.4l-12 3.7V33.9l12-3.7Z"/>
-
-    <!-- Rails: the lattice that makes it a screen rather than three doors -->
-    <path d="M17 47.5l12 3.7v5l-12-3.7v-5Zm25-1.5h16v5H42v-5Zm41 1.5l-12 3.7v5l12-3.7v-5Z"/>
-  </g>
+  <title>Seclude</title>
+  <!-- Left wing, receding, with its window -->
+  <path fill="#000000" fill-rule="evenodd" d="M36,22 L16,27 V73 L36,78 Z M32,29 L20,32 V45 L32,43.5 Z"/>
+  <!-- Centre panel, with an arched window -->
+  <path fill="#000000" fill-rule="evenodd" d="M42,20 H58 A3,3 0 0 1 61,23 V77 A3,3 0 0 1 58,80 H42 A3,3 0 0 1 39,77 V23 A3,3 0 0 1 42,20 Z M44.5,44 V32 A5.5,5.5 0 0 1 55.5,32 V44 Z"/>
+  <!-- Right wing, mirrored -->
+  <path fill="#000000" fill-rule="evenodd" d="M64,22 L84,27 V73 L64,78 Z M68,29 L80,32 V45 L68,43.5 Z"/>
 </svg>
