@@ -176,7 +176,10 @@ class AssignmentsController extends Controller
         foreach ($elementType::find()->status(null)->id($elementIds)->seclude(false)->all() as $element) {
             $found[] = (int)$element->id;
 
-            if (!$assignments->canDelegate($actor, $element, $policy)) {
+            // The picker only offers the policy's own sources, but that is a UI nicety, not a check:
+            // a posted ID from another section would sit dormant until the scope widened to
+            // include it, then come alive as a grant nobody chose.
+            if (!$assignments->canDelegate($actor, $element, $policy) || (!$removing && !$policy->scope->contains($element))) {
                 $refused[] = (int)$element->id;
             }
         }

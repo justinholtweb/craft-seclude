@@ -806,11 +806,29 @@ try {
     $v = $authority->check($nested, $editor, Ability::SAVE);
     check('with the owner ungranted, the block is refused', is_denied($v), $v->reason);
 
+    // A listing of nested entries — a Matrix field in index view — must not show the blocks of an
+    // owner the user cannot see. Take away the one route to `stranger` the editor still has.
+    $assignments->unassign($proposePolicy, $editor, [$fixture->entries['stranger']->id]);
+    $plugin->queryFilter->forceArmed(true);
+    Craft::$app->getUser()->setIdentity($editor);
+    reset_caches();
+
+    $listed = Entry::find()->id($fixture->nested->id)->status(null)->ids();
+    check('a block inside an owner they cannot see is not listed', $listed === [], json_encode($listed));
+
     $assignments->assign($nestedPolicy, $editor, [$fixture->entries['stranger']->id]);
     reset_caches();
 
     $v = $authority->check($nested, $editor, Ability::SAVE);
     check('granting the owner grants the block inside it', $v->isAllowed(), $v->reason);
+
+    $listed = Entry::find()->id($fixture->nested->id)->status(null)->ids();
+    check('and lists it', $listed === [(int)$fixture->nested->id], json_encode($listed));
+
+    $plugin->queryFilter->forceArmed(null);
+    Craft::$app->getUser()->setIdentity(null);
+    $assignments->assign($proposePolicy, $editor, [$fixture->entries['stranger']->id]);
+    reset_caches();
 
     check(
         'a nested entry is outside every scope on its own',

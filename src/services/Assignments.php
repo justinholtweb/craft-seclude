@@ -177,21 +177,12 @@ class Assignments extends Component
             return true;
         }
 
-        $elements = Craft::$app->getElements();
+        $authority = Plugin::getInstance()->authority;
 
         foreach ($policy->abilities->granted() as $ability) {
-            $holds = match ($ability) {
-                Ability::VIEW => $elements->canView($element, $actor),
-                Ability::SAVE => $elements->canSave($element, $actor),
-                Ability::DELETE => $elements->canDelete($element, $actor),
-                Ability::DUPLICATE => $elements->canDuplicate($element, $actor),
-                Ability::PROPOSE => $elements->canCreateDrafts($element, $actor),
-                // Judged against the scope, not an element; an assignment does not hand it over.
-                Ability::CREATE => true,
-                default => false,
-            };
-
-            if (!$holds) {
+            // CREATE is judged against the scope, not an element; an assignment does not hand it
+            // over.
+            if ($ability !== Ability::CREATE && !$authority->permits($element, $actor, $ability)) {
                 return false;
             }
         }

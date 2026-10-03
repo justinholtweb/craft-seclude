@@ -30,15 +30,22 @@
                     <tbody>
                         {% for user in row.users %}
                             <tr>
-                                <td>{{ user.friendlyName ?? user.username }} <span class="light">{{ user.email }}</span></td>
+                                <td>
+                                    {{ user.friendlyName ?? user.username }}
+                                    {# Addresses are an admin's business, not every assigner's. #}
+                                    {% if currentUser.admin %}<span class="light">{{ user.email }}</span>{% endif %}
+                                </td>
                                 <td>
                                     {% set n = row.counts[user.id] ?? 0 %}
                                     {{ "{n, plural, =0{nothing yet} =1{one element} other{# elements}}"|t('seclude', { n: n }) }}
                                 </td>
                                 <td class="thin">
-                                    <a class="btn small" href="{{ url('seclude/assignments/' ~ row.policy.id ~ '/' ~ user.id) }}">
-                                        {{ "Edit"|t('app') }}
-                                    </a>
+                                    {# Non-admins can't manage their own assignments; the edit screen would refuse. #}
+                                    {% if currentUser.admin or user.id != currentUser.id %}
+                                        <a class="btn small" href="{{ url('seclude/assignments/' ~ row.policy.id ~ '/' ~ user.id) }}">
+                                            {{ "Edit"|t('app') }}
+                                        </a>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}

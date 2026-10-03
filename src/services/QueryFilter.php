@@ -8,7 +8,10 @@ use Craft;
 use craft\base\Component;
 use craft\controllers\ElementIndexesController;
 use craft\controllers\ElementSelectorModalsController;
+use craft\db\Query;
+use craft\db\Table;
 use craft\elements\db\ElementQuery;
+use craft\elements\Entry;
 use justinholtweb\seclude\behaviors\SecludeQueryBehavior;
 use justinholtweb\seclude\models\Ability;
 use justinholtweb\seclude\Plugin;
@@ -104,6 +107,40 @@ class QueryFilter extends Component
         // Read it as: leave alone anything outside every governed scope, and inside those scopes
         // show only what was granted. Elements this plugin was never pointed at are untouched.
         $query->subQuery->andWhere(['or', ['not', $restricted], $granted]);
+
+        if (is_a($query->elementType, Entry::class, true)) {
+            $query->subQuery->andWhere(['not', $this->nestedInRefusedOwner($restricted, $granted)]);
+        }
+    }
+
+    /**
+     * Nested entries whose owner this user may not see.
+     *
+     * A nested entry has no section, so it is never in a policy's scope and the condition above
+     * passes it through untouched — which is right for the edit page, where {@see Authority}
+     * judges it as its owner, and wrong for a listing: a Matrix field in index view, asked for
+     * `ownerId=<an entry they cannot open>`, would list that entry's blocks. So a nested entry is
+     * listed only if its primary owner would be.
+     *
+     * The inner query aliases `{{%elements}}` as `elements` on purpose: the scope and grant
+     * conditions are written against `elements.id`, and there they mean the owner. One level of
+     * nesting is covered; a block inside a block is judged by its immediate owner, which is itself
+     * covered by this same clause wherever it is listed.
+     */
+    private function nestedInRefusedOwner(array $restricted, array $granted): array
+    {
+        $refusedOwners = (new Query())
+            ->select(['elements.id'])
+            ->from(['elements' => Table::ELEMENTS])
+            ->where($restricted)
+            ->andWhere(['not', $granted]);
+
+        return ['exists', (new Query())
+            ->from(['seclude_ne' => Table::ENTRIES])
+            ->where('[[seclude_ne.id]] = [[elements.id]]')
+            ->andWhere(['seclude_ne.sectionId' => null])
+            ->andWhere(['seclude_ne.primaryOwnerId' => $refusedOwners]),
+        ];
     }
 
     /**

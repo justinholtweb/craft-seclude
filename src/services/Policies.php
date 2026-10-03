@@ -205,7 +205,13 @@ class Policies extends Component
     {
         $projectConfig = Craft::$app->getProjectConfig();
 
-        foreach ($uids as $index => $uid) {
+        foreach (array_values($uids) as $index => $uid) {
+            // Posted straight from the CP. Anything but a UID would be a project-config *path* —
+            // `uid.name` reaches inside a policy rather than naming one.
+            if (!is_string($uid) || !StringHelper::isUUID($uid)) {
+                continue;
+            }
+
             $config = $projectConfig->get(self::CONFIG_POLICIES_KEY . '.' . $uid);
 
             if ($config === null) {

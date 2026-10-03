@@ -21,10 +21,16 @@ use yii\base\Behavior;
  */
 class SecludeVariable extends Behavior
 {
-    /** Whether Seclude objects to this user doing this to this element. */
+    /**
+     * Whether this user may do this to this element — Craft's permissions and Seclude's together.
+     *
+     * Safe to gate on: false for a guest, and false wherever Craft itself would refuse. Use
+     * {@see self::check()} for Seclude's verdict alone, which is silent (not "no") for anything no
+     * policy governs.
+     */
     public function can(ElementInterface $element, string $ability = Ability::SAVE, ?User $user = null): bool
     {
-        return Plugin::getInstance()->authority->allows($element, $user, $ability);
+        return Plugin::getInstance()->authority->permits($element, $user, $ability);
     }
 
     /** The full verdict, when a template wants to say *why*. */

@@ -150,6 +150,38 @@ class Authority extends Component
     }
 
     /**
+     * Whether Craft — Seclude included — lets this user do this to this element.
+     *
+     * {@see self::check()} answers for Seclude alone, and "Seclude has no objection" is not the
+     * same as "permitted": it is also what Seclude says about a guest, or about a section no policy
+     * touches. This asks Craft's own checks, which Seclude's authorization handlers already feed
+     * into, so it is the right question for anything that gates on the answer.
+     *
+     * CREATE has no element-level check in Craft; it is the scope verdict, and never true for a
+     * guest.
+     */
+    public function permits(ElementInterface $element, ?User $user, string $ability): bool
+    {
+        $user ??= Craft::$app->getUser()->getIdentity();
+
+        if ($user === null) {
+            return false;
+        }
+
+        $elements = Craft::$app->getElements();
+
+        return match ($ability) {
+            Ability::VIEW => $elements->canView($element, $user),
+            Ability::SAVE => $elements->canSave($element, $user),
+            Ability::DELETE => $elements->canDelete($element, $user),
+            Ability::DUPLICATE => $elements->canDuplicate($element, $user),
+            Ability::PROPOSE => $elements->canCreateDrafts($element, $user),
+            Ability::CREATE => !$this->checkCreate($element::class, $element, $user)->isDenied(),
+            default => false,
+        };
+    }
+
+    /**
      * Whether the user may create new elements anywhere in a governed scope.
      *
      * Asked instead of {@see self::check()} when there is no element yet — a brand-new entry has

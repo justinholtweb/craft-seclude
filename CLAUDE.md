@@ -132,6 +132,10 @@ out of the CP. Inside an evaluable policy, an element matching no grant *is* den
   request (`runQueueAutomatically`), so "governed, ungranted and saved anyway" does not mean
   "just created". Adoption keys off `firstSave`, which Craft also sets when an unpublished draft is
   applied.
+- **Nested entries are never in scope, so the listing filter would pass them through.** Fine on
+  an edit page (`Authority::subject()` judges the owner), a leak in a listing — a Matrix field in
+  index view for an ungranted owner. `QueryFilter` adds an owner-must-be-listable clause for entry
+  queries.
 - **Publishing a new entry asks `canSave()` about a fake canonical.** `canSaveCanonical()` clones
   the unpublished draft, clears `draftId` and keeps the ID, so it looks like an existing entry
   nobody has been granted. `Guard` checks the `elements` row and judges it as CREATE. Saving an
@@ -150,7 +154,7 @@ See also `[[craft-plugin-gotchas]]` in the shared memory for family-wide traps.
 No local PHP on this Mac. Everything runs inside the plugin-testing container.
 
 ```sh
-docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-seclude/tests/integration/checks.php   # 106 checks
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-seclude/tests/integration/checks.php   # 108 checks
 bash tests/manual/cp-smoke.sh                                                                                  # 16 checks
 docker exec ddev-plugin-testing-web bash -c 'find /var/www/craft-seclude/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-seclude/tests/manual/seed-demo.php [--clean]
