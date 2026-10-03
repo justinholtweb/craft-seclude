@@ -599,6 +599,67 @@ try {
     $policies->deletePolicy($reloaded);
     reset_caches();
 
+    // A non-admin with `deleteUsers` must not be able to lift a policy by deleting one person it
+    // names. The missing user simply matches nobody.
+    $ghost = policy([
+        'name' => 'Seclude Ghost',
+        'handle' => 'secludeGhost',
+        'subjects' => [
+            'userGroupUids' => [$fixture->group->uid],
+            'userUids' => ['00000000-0000-0000-0000-000000000001'],
+        ],
+        'scope' => ['type' => TargetScope::TYPE_ENTRIES, 'sourceUids' => [$fixture->channel->uid]],
+        'grants' => [new AssignedGrant()],
+        'abilities' => ['view' => true],
+    ]);
+
+    check('a policy naming a deleted user stays evaluable', $ghost->isEvaluable(), implode(' ', $ghost->unevaluableReasons()));
+
+    $policies->deletePolicy($ghost);
+    reset_caches();
+
+    // A condition whose rule cannot be rebuilt must match nothing, not everything.
+    $lossy = policy([
+        'name' => 'Seclude Lossy',
+        'handle' => 'secludeLossy',
+        'subjects' => ['userGroupUids' => [$fixture->group->uid]],
+        'scope' => ['type' => TargetScope::TYPE_ENTRIES, 'sourceUids' => [$fixture->channel->uid]],
+        'grants' => [new ConditionGrant(['condition' => [
+            'class' => craft\elements\conditions\entries\EntryCondition::class,
+            'conditionRules' => [[
+                'class' => craft\fields\conditions\TextFieldConditionRule::class,
+                'fieldUid' => '00000000-0000-0000-0000-000000000002',
+                'operator' => '=',
+                'value' => 'x',
+            ]],
+        ]])],
+        'abilities' => ['view' => true],
+    ]);
+
+    $lossyGrant = $lossy->getGrantsByType(ConditionGrant::type())[0] ?? null;
+    $lossyQuery = $lossyGrant?->idQuery($editor, $lossy);
+    check('a condition that lost a rule matches no element', $lossyGrant?->contains($fixture->entries['south'], $editor, $lossy) === false);
+    check('and lists none', $lossyQuery !== null && $lossyQuery->column() === [], json_encode($lossyQuery?->column()));
+
+    $policies->deletePolicy($lossy);
+    reset_caches();
+
+    // -----------------------------------------------------------------------------------------
+    heading('Posted criteria cannot switch the filter off');
+
+    // Craft's index controllers run posted `criteria` through Craft::configure().
+    foreach (['seclude' => false, 'secludeFlag' => false] as $key => $value) {
+        $refused = false;
+
+        try {
+            Craft::configure(Entry::find(), [$key => $value]);
+        } catch (Throwable) {
+            $refused = true;
+        }
+
+        check("criteria[$key] is refused", $refused);
+    }
+
     // -----------------------------------------------------------------------------------------
     heading('Categories, assets and users');
 
@@ -642,19 +703,61 @@ try {
     // -----------------------------------------------------------------------------------------
     heading('Delegation guard');
 
-    check(
-        'an admin may delegate anything',
-        $assignments->canDelegate($admin, $fixture->entries['south']),
-    );
+    // Two policies over the same section: one lets the editor see everything, the other hands out
+    // editing and deleting by assignment. Seeing an entry must not be enough to pass on the right
+    // to edit and delete it.
+    $viewAll = policy([
+        'name' => 'Seclude View All',
+        'handle' => 'secludeViewAll',
+        'subjects' => ['userGroupUids' => [$fixture->group->uid]],
+        'scope' => ['type' => TargetScope::TYPE_ENTRIES, 'sourceUids' => [$fixture->channel->uid]],
+        'grants' => [new ConditionGrant(['condition' => [
+            'class' => craft\elements\conditions\entries\EntryCondition::class,
+            'conditionRules' => [],
+        ]])],
+        'abilities' => ['view' => true],
+    ]);
+
+    $editAssigned = policy([
+        'name' => 'Seclude Edit Assigned',
+        'handle' => 'secludeEditAssigned',
+        'subjects' => ['userGroupUids' => [$fixture->group->uid]],
+        'scope' => ['type' => TargetScope::TYPE_ENTRIES, 'sourceUids' => [$fixture->channel->uid]],
+        'grants' => [new AssignedGrant()],
+        'abilities' => ['view' => true, 'save' => true, 'delete' => true],
+    ]);
 
     Craft::$app->getUser()->setIdentity($editor);
     reset_caches();
 
     check(
-        'a secluded delegator may not hand over what they cannot reach',
-        !$assignments->canDelegate($editor, $fixture->entries['south']),
+        'an admin may delegate anything',
+        $assignments->canDelegate($admin, $fixture->entries['south'], $editAssigned),
     );
 
+    check(
+        'a delegator may hand over what they can see under a view-only policy',
+        $assignments->canDelegate($editor, $fixture->entries['south'], $viewAll),
+    );
+
+    check(
+        'but not under a policy that grants more than they hold themselves',
+        !$assignments->canDelegate($editor, $fixture->entries['south'], $editAssigned),
+    );
+
+    $policies->deletePolicy($policies->getPolicyByHandle('secludeViewAll'));
+    reset_caches();
+
+    check(
+        'a secluded delegator may not hand over what they cannot reach',
+        !$assignments->canDelegate($editor, $fixture->entries['south'], $editAssigned),
+    );
+
+    check('a non-admin may not manage their own assignments', !$assignments->canAssignTo($editor, $editor));
+    check('but may manage somebody else’s', $assignments->canAssignTo($editor, $other));
+    check('an admin may manage their own', $assignments->canAssignTo($admin, $admin));
+
+    $policies->deletePolicy($policies->getPolicyByHandle('secludeEditAssigned'));
     Craft::$app->getUser()->setIdentity(null);
     reset_caches();
 
@@ -816,8 +919,100 @@ try {
     $v = $authority->check($fresh, $other, Ability::SAVE);
     check('and nobody else gets it', is_denied($v), $v->reason);
 
+    // The real "New entry" flow: an unpublished draft first, published afterwards. Craft asks
+    // canSaveCanonical() about a clone with draftId cleared, which looks like an existing entry
+    // that nobody has been granted.
+    $draft = new Entry([
+        'sectionId' => $fixture->channel->id,
+        'typeId' => $fixture->channelType->id,
+        'title' => 'Seclude Drafted',
+    ]);
+    Craft::$app->getDrafts()->saveElementAsDraft($draft, $editor->id, null, null, false);
+    reset_caches();
+
+    check('a new entry’s draft can be published by its creator', Craft::$app->getElements()->canSaveCanonical($draft, $editor));
+
+    $published = Craft::$app->getDrafts()->applyDraft($draft);
+    $fixture->entries['drafted'] = $published;
+    reset_caches();
+
+    check(
+        'and once published it is theirs',
+        in_array((int)$published->id, $assignments->assignedElementIds($createPolicy, $editor), true),
+    );
+
+    // A resave is not a creation, even inside the editor's request — this is what a queued
+    // ResaveElements job running in their browser looks like.
+    $south = Entry::find()->id($fixture->entries['south']->id)->status(null)->seclude(false)->one();
+    $south->resaving = true;
+    Craft::$app->getElements()->saveElement($south, false);
+    reset_caches();
+
+    check(
+        'resaving an ungranted element does not adopt it',
+        !in_array((int)$south->id, $assignments->assignedElementIds($createPolicy, $editor), true),
+    );
+
     Craft::$app->getUser()->setIdentity(null);
     $policies->deletePolicy($policies->getPolicyByHandle('secludeCreate'));
+    reset_caches();
+
+    // -----------------------------------------------------------------------------------------
+    heading('The backstop');
+
+    // Craft endpoints that never raise an authorization event — move-to-section, structure moves,
+    // the asset and user controllers — still end in a save, a delete or a move.
+    $backstopPolicy = policy([
+        'name' => 'Seclude Backstop',
+        'handle' => 'secludeBackstop',
+        'subjects' => ['userGroupUids' => [$fixture->group->uid]],
+        'scope' => ['type' => TargetScope::TYPE_ENTRIES, 'sourceUids' => [$fixture->channel->uid, $fixture->structure->uid]],
+        'grants' => [new AssignedGrant()],
+        'abilities' => ['view' => true, 'save' => true, 'propose' => true],
+        'includeDescendants' => true,
+    ]);
+
+    $assignments->assign($backstopPolicy, $editor, [$fixture->entries['root']->id, $fixture->entries['stranger']->id]);
+    Craft::$app->getUser()->setIdentity($editor);
+    reset_caches();
+
+    $south = Entry::find()->id($fixture->entries['south']->id)->status(null)->seclude(false)->one();
+    check('saving an ungranted element is refused', Craft::$app->getElements()->saveElement($south, false) === false);
+    check('deleting one is refused', Craft::$app->getElements()->deleteElement($south) === false);
+
+    $stranger = Entry::find()->id($fixture->entries['stranger']->id)->status(null)->seclude(false)->one();
+    check('saving a granted one is not', Craft::$app->getElements()->saveElement($stranger, false) === true);
+
+    $refusedMove = false;
+
+    try {
+        Craft::$app->getEntries()->moveEntryToSection($south, $fixture->structure);
+    } catch (yii\web\ForbiddenHttpException) {
+        $refusedMove = true;
+    }
+
+    check('moving an ungranted entry to another section is refused', $refusedMove);
+
+    $structures = Craft::$app->getStructures();
+    $sibling = Entry::find()->id($fixture->entries['sibling']->id)->status(null)->seclude(false)->one();
+    $root = Entry::find()->id($fixture->entries['root']->id)->status(null)->seclude(false)->one();
+    check(
+        'moving an ungranted entry under a granted branch is refused',
+        $structures->append($fixture->structure->structureId, $sibling, $root) === false,
+    );
+
+    $child = Entry::find()->id($fixture->entries['child']->id)->status(null)->seclude(false)->one();
+    check(
+        'moving a granted one is not',
+        $structures->appendToRoot($fixture->structure->structureId, $child) === true,
+    );
+
+    Craft::$app->getUser()->setIdentity($admin);
+    reset_caches();
+    check('an admin is not held back', Craft::$app->getElements()->saveElement($south, false) === true);
+
+    Craft::$app->getUser()->setIdentity(null);
+    $policies->deletePolicy($policies->getPolicyByHandle('secludeBackstop'));
     reset_caches();
 
     // -----------------------------------------------------------------------------------------
@@ -837,6 +1032,10 @@ try {
     echo $e->getTraceAsString() . "\n";
 } finally {
     echo "\nTearing down…\n";
+
+    // A run that died mid-check may have left a secluded identity set, and the backstop would then
+    // refuse the teardown's own deletes.
+    Craft::$app->getUser()->setIdentity(null);
 
     foreach ($madePolicies as $policy) {
         $current = $policies->getPolicyByHandle($policy->handle);

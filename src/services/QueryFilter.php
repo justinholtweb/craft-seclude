@@ -58,7 +58,7 @@ class QueryFilter extends Component
     {
         /** @var SecludeQueryBehavior|null $behavior */
         $behavior = $query->getBehavior('seclude');
-        $explicit = $behavior?->seclude;
+        $explicit = $behavior?->getSecludeFlag();
 
         // `.seclude(false)` always wins, `.seclude(true)` filters outside an index action, and
         // null defers to whether this request is one of the listings the filter covers.

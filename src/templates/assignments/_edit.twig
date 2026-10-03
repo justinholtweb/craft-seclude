@@ -28,6 +28,12 @@
         showSiteMenu: true,
     }) }}
 
+    {% if hidden %}
+        <p class="light smalltext">
+            {{ "{n, plural, =1{One more assignment isn’t shown} other{# more assignments aren’t shown}} — they cover elements you couldn’t hand over yourself. Saving leaves them in place."|t('seclude', { n: hidden }) }}
+        </p>
+    {% endif %}
+
     {% if not policy.abilities.view %}
         <blockquote class="note warning">
             <p>{{ "This policy doesn’t permit viewing, so an assignment here grants nothing visible."|t('seclude') }}</p>

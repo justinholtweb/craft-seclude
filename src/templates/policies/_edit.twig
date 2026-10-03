@@ -191,6 +191,9 @@
                                 options: [{ label: "Choose a field"|t('seclude'), value: '' }]|merge(relationFieldOptions),
                                 value: grant ? grant.userFieldUid : null,
                             }) }}
+                            <blockquote class="note warning">
+                                <p>{{ "Users can edit the fields on their own account by default. If they can change this one, they can choose what this grant gives them. Make it read-only for them — in the user field layout, give the field an “Editable” condition that leaves them out."|t('seclude') }}</p>
+                            </blockquote>
                         </div>
                         <div id="relation-mode-direct"></div>
                     {% elseif type == 'condition' %}

@@ -7,6 +7,8 @@ namespace justinholtweb\seclude\services;
 use Craft;
 use craft\base\Component;
 use craft\base\ElementInterface;
+use craft\db\Query;
+use craft\db\Table;
 use craft\events\AuthorizationCheckEvent;
 use craft\services\Elements;
 use justinholtweb\seclude\models\Ability;
@@ -61,12 +63,18 @@ class Guard extends Component
      * - the canonical element → **edit**, which is also where publishing a draft lands, because
      *   `canSaveCanonical()` asks this about the canonical. That is exactly the line propose-only
      *   is meant to draw.
+     *
+     * Publishing a *new* entry is the exception, and it is easy to miss. For an unpublished draft,
+     * `canSaveCanonical()` asks about a clone with `draftId` cleared and the ID kept — which looks
+     * exactly like an existing canonical entry, nobody has been granted it yet, and the "Create"
+     * button would make a draft that can never be published. {@see self::isUnpublishedDraftRow()}
+     * asks the database what that ID really is.
      */
     public function authorizeSave(AuthorizationCheckEvent $event): void
     {
         $element = $event->element;
 
-        if ($element->id === null || $element->getIsUnpublishedDraft()) {
+        if ($element->id === null || $element->getIsUnpublishedDraft() || $this->isUnpublishedDraftRow($element)) {
             $this->apply($event, Ability::CREATE);
 
             return;
@@ -79,6 +87,24 @@ class Guard extends Component
         }
 
         $this->apply($event, Ability::SAVE);
+    }
+
+    /** @var array<int, bool> */
+    private array $_unpublishedDraftRows = [];
+
+    /** Whether an element that looks canonical is in fact still an unpublished draft in the database. */
+    private function isUnpublishedDraftRow(ElementInterface $element): bool
+    {
+        if ($element->id === null || $element->getIsDraft() || $element->getIsRevision()) {
+            return false;
+        }
+
+        return $this->_unpublishedDraftRows[(int)$element->id] ??= (new Query())
+            ->from([Table::ELEMENTS])
+            ->where(['id' => (int)$element->id])
+            ->andWhere(['not', ['draftId' => null]])
+            ->andWhere(['canonicalId' => null])
+            ->exists();
     }
 
     public function authorizeCreateDrafts(AuthorizationCheckEvent $event): void

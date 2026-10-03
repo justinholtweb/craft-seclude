@@ -159,20 +159,60 @@ class Assignments extends Component
     }
 
     /**
-     * Whether this person may hand that element to somebody else.
+     * Whether this person may hand that element to somebody else under this policy.
      *
      * The one place Seclude could become a privilege-escalation route, and the reason
      * `seclude:manageAssignments` exists as a separate permission from being an admin: a
      * department head can delegate their own work without being able to delegate anybody else's.
      * An admin, or anybody exempt from Seclude, is not restricted here.
+     *
+     * Being able to *see* the element is not enough. An assignment hands over every ability the
+     * policy grants, so the assigner must hold each of those on the element themselves — otherwise
+     * a view-only editor could assign an entry under an "edit and delete" policy and pass on powers
+     * they never had.
      */
-    public function canDelegate(User $actor, ElementInterface $element): bool
+    public function canDelegate(User $actor, ElementInterface $element, Policy $policy): bool
     {
         if ($actor->admin || Plugin::getInstance()->authority->isExempt($actor)) {
             return true;
         }
 
-        return Craft::$app->getElements()->canView($element, $actor);
+        $elements = Craft::$app->getElements();
+
+        foreach ($policy->abilities->granted() as $ability) {
+            $holds = match ($ability) {
+                Ability::VIEW => $elements->canView($element, $actor),
+                Ability::SAVE => $elements->canSave($element, $actor),
+                Ability::DELETE => $elements->canDelete($element, $actor),
+                Ability::DUPLICATE => $elements->canDuplicate($element, $actor),
+                Ability::PROPOSE => $elements->canCreateDrafts($element, $actor),
+                // Judged against the scope, not an element; an assignment does not hand it over.
+                Ability::CREATE => true,
+                default => false,
+            };
+
+            if (!$holds) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether this person may manage that user's assignments at all.
+     *
+     * Not their own, unless they are an admin or exempt: an assigner who may hand themselves
+     * elements under any assignment policy that names them has, in effect, every grant that policy
+     * could give.
+     */
+    public function canAssignTo(User $actor, User $assignee): bool
+    {
+        if ($actor->admin || Plugin::getInstance()->authority->isExempt($actor)) {
+            return true;
+        }
+
+        return (int)$actor->id !== (int)$assignee->id;
     }
 
     /**

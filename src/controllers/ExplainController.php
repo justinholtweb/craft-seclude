@@ -8,13 +8,37 @@ use Craft;
 use craft\elements\User;
 use craft\web\Controller;
 use justinholtweb\seclude\Plugin;
+use yii\web\ForbiddenHttpException;
 use yii\web\Response;
 
 /**
  * "Who can edit what" — the screen that keeps a permissions plugin supportable.
+ *
+ * Admins and assigners only, and CP only. The report names policies, grants and element titles,
+ * and the JSON helpers list users and the IDs they can reach — every one of them is exactly what a
+ * permissions plugin exists to keep from the wrong person, and a plugin controller with no checks
+ * of its own is reachable by any logged-in user from the front end at `/actions/seclude/…`.
  */
 class ExplainController extends Controller
 {
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        $this->requireCpRequest();
+
+        // The JSON helpers answer for any user and any policy; only an admin may ask that.
+        if ($action->id !== 'index') {
+            $this->requireAdmin(false);
+        } elseif (!Plugin::getInstance()->canAssign()) {
+            throw new ForbiddenHttpException('You are not permitted to explain Seclude’s decisions.');
+        }
+
+        return true;
+    }
+
     public function actionIndex(): Response
     {
         $request = Craft::$app->getRequest();
@@ -29,9 +53,17 @@ class ExplainController extends Controller
         if ($elementId) {
             // No `.seclude(false)` needed: this route is not one of the listings
             // {@see \justinholtweb\seclude\services\QueryFilter} arms itself for, so the lookup
-            // is untouched and the screen can explain an element the *viewer* cannot reach. That
-            // matters — an editor holding the assign permission may well be secluded themselves.
+            // is untouched and an admin can explain an element whoever is asking cannot reach.
             $element = Craft::$app->getElements()->getElementById((int)$elementId);
+
+            // An assigner may be secluded themselves, and the report opens with the element's
+            // title — so for anyone but an admin, an element they cannot view is one they are
+            // not told about, any more than the element index would tell them.
+            $viewer = Craft::$app->getUser()->getIdentity();
+
+            if ($element !== null && !$viewer->admin && !Craft::$app->getElements()->canView($element, $viewer)) {
+                $element = null;
+            }
         }
 
         if ($user !== null && $element !== null) {

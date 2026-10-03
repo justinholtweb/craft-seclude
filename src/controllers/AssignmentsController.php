@@ -7,6 +7,7 @@ namespace justinholtweb\seclude\controllers;
 use Craft;
 use craft\elements\User;
 use craft\web\Controller;
+use justinholtweb\seclude\models\Policy;
 use justinholtweb\seclude\Plugin;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -26,6 +27,8 @@ class AssignmentsController extends Controller
         if (!parent::beforeAction($action)) {
             return false;
         }
+
+        $this->requireCpRequest();
 
         if (!Plugin::getInstance()->canAssign()) {
             throw new ForbiddenHttpException('You are not permitted to assign elements.');
@@ -69,17 +72,30 @@ class AssignmentsController extends Controller
 
         $elementType = $policy->scope->elementType();
         $elements = [];
+        $hidden = 0;
 
         if ($ids !== [] && $elementType !== null) {
             // `.seclude(false)`: the person doing the assigning may themselves be secluded, and the
             // filter would hide the very rows this screen exists to show.
-            $elements = $elementType::find()->status(null)->id($ids)->seclude(false)->all();
+            $actor = Craft::$app->getUser()->getIdentity();
+
+            foreach ($elementType::find()->status(null)->id($ids)->seclude(false)->all() as $element) {
+                // An assignment somebody else made, of something this assigner could not hand
+                // over themselves, is neither theirs to see nor theirs to take away. It is counted
+                // rather than listed, and {@see self::actionSave()} leaves it where it is.
+                if ($assignments->canDelegate($actor, $element, $policy)) {
+                    $elements[] = $element;
+                } else {
+                    $hidden++;
+                }
+            }
         }
 
         return $this->renderTemplate('seclude/assignments/_edit', [
             'policy' => $policy,
             'user' => $user,
             'elements' => $elements,
+            'hidden' => $hidden,
             'elementType' => $elementType,
             'sources' => $this->sourcesFor($policy),
         ]);
@@ -96,35 +112,55 @@ class AssignmentsController extends Controller
             (int)$request->getRequiredBodyParam('userId'),
         );
 
-        $elementIds = array_values(array_filter(array_map('intval', (array)$request->getBodyParam('elementIds', []))));
+        $posted = array_values(array_unique(array_filter(array_map('intval', (array)$request->getBodyParam('elementIds', [])))));
         $actor = Craft::$app->getUser()->getIdentity();
+        $assignments = Plugin::getInstance()->assignments;
 
-        // The escalation guard. Without it, `seclude:manageAssignments` would let somebody grant
-        // themselves — or a friend — anything on the site by way of a policy they do not control.
-        $refused = $this->refuseUndelegatable($elementIds, $policy, $actor);
+        $existing = $assignments->assignedElementIds($policy, $user);
+        $added = array_values(array_diff($posted, $existing));
+        $removed = array_values(array_diff($existing, $posted));
 
-        if ($refused !== []) {
-            Craft::$app->getSession()->setError(Craft::t('seclude', 'You can only assign elements you can reach yourself. {n} were skipped.', [
-                'n' => count($refused),
+        // The escalation guard, on both sides of the diff. Without it, `seclude:manageAssignments`
+        // would let somebody grant themselves — or a friend — anything on the site by way of a
+        // policy they do not control; and, the other way round, quietly take away what an admin
+        // handed out. Rows the edit screen did not show are never in the post, so they arrive here
+        // as removals and are kept.
+        $refusedAdds = $this->refuseUndelegatable($added, $policy, $actor);
+        $keptRemovals = $this->refuseUndelegatable($removed, $policy, $actor, removing: true);
+
+        $result = [
+            'added' => $assignments->assign($policy, $user, array_diff($added, $refusedAdds), $actor),
+            'removed' => $assignments->unassign($policy, $user, array_diff($removed, $keptRemovals)),
+        ];
+
+        if ($refusedAdds !== []) {
+            Craft::$app->getSession()->setError(Craft::t('seclude', 'You can only assign elements you could do everything this policy allows with yourself. {n} were skipped.', [
+                'n' => count($refusedAdds),
             ]));
-
-            $elementIds = array_values(array_diff($elementIds, $refused));
-        }
-
-        $result = Plugin::getInstance()->assignments->setAssignments($policy, $user, $elementIds, $actor);
-
-        if ($refused === []) {
+        } else {
             Craft::$app->getSession()->setNotice(Craft::t('seclude', '{added} added, {removed} removed.', $result));
         }
 
         return $this->redirect('seclude/assignments');
     }
 
-    /** @return int[] element IDs the actor may not hand over */
-    private function refuseUndelegatable(array $elementIds, $policy, ?User $actor): array
+    /**
+     * Element IDs the actor may not hand over (or take back) under this policy.
+     *
+     * Removals that refer to an element which no longer resolves are not refused: there is nothing
+     * left to protect, and keeping the row would only leave a dangling grant behind.
+     *
+     * @param int[] $elementIds
+     * @return int[]
+     */
+    private function refuseUndelegatable(array $elementIds, Policy $policy, ?User $actor, bool $removing = false): array
     {
-        if ($actor === null || $elementIds === []) {
+        if ($elementIds === []) {
             return [];
+        }
+
+        if ($actor === null) {
+            return $elementIds;
         }
 
         $assignments = Plugin::getInstance()->assignments;
@@ -135,18 +171,23 @@ class AssignmentsController extends Controller
         }
 
         $refused = [];
+        $found = [];
 
         foreach ($elementType::find()->status(null)->id($elementIds)->seclude(false)->all() as $element) {
-            if (!$assignments->canDelegate($actor, $element)) {
+            $found[] = (int)$element->id;
+
+            if (!$assignments->canDelegate($actor, $element, $policy)) {
                 $refused[] = (int)$element->id;
             }
         }
 
+        if ($removing) {
+            return $refused;
+        }
+
         // An ID that resolved to nothing is refused too: it is either not of this element type or
         // does not exist, and either way it has no business becoming a grant.
-        $found = $elementType::find()->status(null)->id($elementIds)->seclude(false)->ids();
-
-        return array_values(array_unique(array_merge($refused, array_diff($elementIds, array_map('intval', $found)))));
+        return array_values(array_unique(array_merge($refused, array_diff($elementIds, $found))));
     }
 
     private function resolve(int $policyId, int $userId): array
@@ -164,6 +205,10 @@ class AssignmentsController extends Controller
 
         if (!$policy->subjects->matches($user)) {
             throw new NotFoundHttpException('That policy does not apply to that user.');
+        }
+
+        if (!Plugin::getInstance()->assignments->canAssignTo(Craft::$app->getUser()->getIdentity(), $user)) {
+            throw new ForbiddenHttpException('You cannot manage your own assignments.');
         }
 
         return [$policy, $user];

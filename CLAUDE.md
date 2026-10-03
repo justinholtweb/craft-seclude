@@ -41,10 +41,13 @@ The enforcement points only *ask*:
 - `services\Guard` — the eight `Elements::EVENT_AUTHORIZE_*` events, mapped onto six abilities
 - `services\QueryFilter` — `ElementQuery::EVENT_BEFORE_PREPARE`, **armed**, see below
 - `services\Sources` — `Element::EVENT_REGISTER_SOURCES`
-- `services\Adoption` — `Elements::EVENT_AFTER_SAVE_ELEMENT`
+- `services\Backstop` — `Element::EVENT_BEFORE_SAVE` / `BEFORE_DELETE` / `BEFORE_MOVE_IN_STRUCTURE`
+  and `Entries::EVENT_BEFORE_MOVE_TO_SECTION`, for the Craft endpoints that never raise an
+  authorization event. Judges the *stored* element, not the posted one
+- `services\Adoption` — `Elements::EVENT_AFTER_SAVE_ELEMENT`, gated on `isNew || firstSave`
 - `twig\SecludeVariable`
 
-If a sixth surface needs guarding, it asks `Authority` too.
+If another surface needs guarding, it asks `Authority` too.
 
 ### Grants answer in SQL, once
 
@@ -110,6 +113,33 @@ out of the CP. Inside an evaluable policy, an element matching no grant *is* den
   `$group->id` null and `assignUserToGroups()` silently assigns nothing. Flush and re-fetch.
 - **Craft can't call a static method on a class-name string in Twig.** `getGrantTypes()` returns
   class names; labels are resolved in the controller.
+- **`Elements::EVENT_BEFORE_SAVE_ELEMENT` and `EVENT_BEFORE_DELETE_ELEMENT` cannot cancel
+  anything** (Craft 5.11 never reads `isValid`). Refuse through the element-level
+  `Element::EVENT_BEFORE_SAVE` / `EVENT_BEFORE_DELETE` instead.
+  `Structures::EVENT_BEFORE_MOVE_ELEMENT` is deprecated and no longer fires; use
+  `Element::EVENT_BEFORE_MOVE_IN_STRUCTURE`, which exists across the whole 5.3+ range.
+- **A public property on a query behaviour is settable from the request.** The index controllers
+  pass posted `criteria` through `Craft::configure()`, which writes into behaviour properties.
+  `SecludeQueryBehavior`'s flag is private, with a method to set it, for exactly this reason —
+  `criteria[seclude]=0` used to return an unfiltered index.
+- **A plugin controller with no `beforeAction` is reachable by any logged-in user from the front
+  end** at `/actions/seclude/…`. Every controller here calls `requireCpRequest()` and checks a
+  permission.
+- **Craft's field condition rules match *everything* when their field is gone** (`matchElement()`
+  returns true; the rule survives rebuild, so counting rules does not catch it). `ConditionGrant`
+  probes each rule's `getLabel()`, which throws in that state, and matches nothing instead.
+- **Not every save went through `Guard`.** Queued `ResaveElements` jobs run inside an editor's web
+  request (`runQueueAutomatically`), so "governed, ungranted and saved anyway" does not mean
+  "just created". Adoption keys off `firstSave`, which Craft also sets when an unpublished draft is
+  applied.
+- **Publishing a new entry asks `canSave()` about a fake canonical.** `canSaveCanonical()` clones
+  the unpublished draft, clears `draftId` and keeps the ID, so it looks like an existing entry
+  nobody has been granted. `Guard` checks the `elements` row and judges it as CREATE. Saving an
+  entry directly in a test does not exercise this; the checks go through
+  `saveElementAsDraft()` → `canSaveCanonical()` → `applyDraft()`.
+- **The integration checks run in the console with an identity set**, so a guard on
+  `getIsConsoleRequest()` silently disables a service under test. Use the identity, and
+  `requestedRoute === 'queue/run'` for the queue.
 - **A `php -l` failure straight after writing a file is usually a lie** — the bind mount can serve
   a half-synced file. Re-run before believing it.
 
@@ -120,7 +150,7 @@ See also `[[craft-plugin-gotchas]]` in the shared memory for family-wide traps.
 No local PHP on this Mac. Everything runs inside the plugin-testing container.
 
 ```sh
-docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-seclude/tests/integration/checks.php   # 84 checks
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-seclude/tests/integration/checks.php   # 106 checks
 bash tests/manual/cp-smoke.sh                                                                                  # 16 checks
 docker exec ddev-plugin-testing-web bash -c 'find /var/www/craft-seclude/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-seclude/tests/manual/seed-demo.php [--clean]

@@ -7,7 +7,6 @@ namespace justinholtweb\seclude\models;
 use Craft;
 use craft\base\Model;
 use craft\elements\User;
-use craft\helpers\Db;
 
 /**
  * Who a policy secludes.
@@ -143,7 +142,14 @@ class Subjects extends Model
         return $out;
     }
 
-    /** Whether every group and user named here still exists. Drives the unevaluable check. */
+    /**
+     * Whether every group named here still exists. Drives the unevaluable check.
+     *
+     * Named users are deliberately not part of it. A deleted user matches nobody, so leaving their
+     * UID behind narrows the policy by exactly one person who is not there — whereas marking the
+     * policy unevaluable would switch it off for every member of every group it names. Deleting
+     * users is a permission non-admins can hold; it must not double as a way to lift a policy.
+     */
     public function isResolvable(): bool
     {
         if ($this->allUsers) {
@@ -152,12 +158,6 @@ class Subjects extends Model
 
         foreach ($this->userGroupUids as $uid) {
             if (Craft::$app->getUserGroups()->getGroupByUid($uid) === null) {
-                return false;
-            }
-        }
-
-        foreach ($this->userUids as $uid) {
-            if (Db::idByUid('{{%elements}}', $uid) === null) {
                 return false;
             }
         }

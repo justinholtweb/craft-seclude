@@ -22,14 +22,16 @@ use justinholtweb\seclude\Plugin;
  *
  * ## How it knows a creation happened
  *
- * Not from `isNew`. Craft 5 makes an unpublished draft first and then applies it, so the canonical
- * save that matters is not flagged new, and the flow differs again between the entry editor,
- * inline editing and a slideout.
+ * Not from `isNew` alone. Craft 5 makes an unpublished draft first and then applies it, so the
+ * canonical save that matters is not flagged new. It *is* flagged `firstSave` — Craft sets that on
+ * the first save of an element in its normal, non-draft state, applying an unpublished draft
+ * included — and that flag is the gate.
  *
- * The reliable signal is a contradiction: this user is **governed** here, holds **no grant** for
- * this element, and the save **succeeded anyway**. If they were granted, {@see Authority} would
- * have said so; if they were governed and ungranted, {@see Guard} would have refused the save. The
- * only way to be standing here is that the element did not exist when permission was checked.
+ * It has to be. The older signal — governed, ungranted, and saved anyway — assumed every save had
+ * been through {@see Guard}, and plenty are not: a `ResaveElements` job run by the queue inside
+ * an editor's own web request, Craft's move-to-section and asset-move endpoints, any plugin that
+ * saves on the user's behalf. Each of those turned into a permanent hand-assignment of something
+ * the editor had never been granted.
  */
 class Adoption extends Component
 {
@@ -42,6 +44,19 @@ class Adoption extends Component
         }
 
         $element = $event->element;
+
+        // Only a creation, and only one this user made in their own request. Resaves and
+        // propagation are bulk work on existing elements; the queue acts for nobody in particular,
+        // even when it happens to be running inside somebody's session. (The console needs no
+        // check of its own: it has no logged-in user, and the identity test below ends it.)
+        if (
+            !($event->isNew || $element->firstSave)
+            || $element->resaving
+            || $element->propagating
+            || Craft::$app->requestedRoute === 'queue/run'
+        ) {
+            return;
+        }
 
         // Drafts and revisions are not the thing anybody is granted; the canonical is. A nested
         // entry is governed through its owner and has no assignment of its own.

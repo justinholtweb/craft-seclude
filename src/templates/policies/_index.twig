@@ -53,7 +53,9 @@
                         </td>
                         <td>
                             <div class="light smalltext">
-                                {{ policy.describeGrants|join('<br>')|raw ?: '—' }}
+                                {# Each line names fields, which are admin-written text: escape them, then join. #}
+                                {% set grantLines = policy.describeGrants|map(line => line|e) %}
+                                {{ grantLines is not empty ? grantLines|join('<br>')|raw : '—' }}
                                 {% if policy.includeDescendants %}
                                     <br>{{ "…and everything beneath them"|t('seclude') }}
                                 {% endif %}

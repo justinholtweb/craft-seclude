@@ -25,6 +25,7 @@ use justinholtweb\seclude\models\Settings;
 use justinholtweb\seclude\services\Adoption;
 use justinholtweb\seclude\services\Assignments;
 use justinholtweb\seclude\services\Authority;
+use justinholtweb\seclude\services\Backstop;
 use justinholtweb\seclude\services\Explain;
 use justinholtweb\seclude\services\Guard;
 use justinholtweb\seclude\services\Policies;
@@ -47,6 +48,7 @@ use yii\base\Event;
  * @property-read Resolver $resolver
  * @property-read Assignments $assignments
  * @property-read Guard $guard
+ * @property-read Backstop $backstop
  * @property-read QueryFilter $queryFilter
  * @property-read Sources $sources
  * @property-read Adoption $adoption
@@ -91,6 +93,7 @@ class Plugin extends BasePlugin
                 'resolver' => Resolver::class,
                 'assignments' => Assignments::class,
                 'guard' => Guard::class,
+                'backstop' => Backstop::class,
                 'queryFilter' => QueryFilter::class,
                 'sources' => Sources::class,
                 'adoption' => Adoption::class,
@@ -116,6 +119,7 @@ class Plugin extends BasePlugin
         // half-installed site is how a plugin makes `craft install` fail.
         Craft::$app->onInit(function() {
             $this->guard->register();
+            $this->backstop->register();
             $this->sources->register();
             $this->registerQueryFilter();
             $this->registerAdoption();
@@ -124,27 +128,38 @@ class Plugin extends BasePlugin
 
     public function getCpNavItem(): ?array
     {
+        // Every screen is for admins or assigners. Anyone else holding `accessPlugin-seclude`
+        // would only find a nav item that leads to a 403.
+        if (!$this->canAssign()) {
+            return null;
+        }
+
         $item = parent::getCpNavItem();
         $item['label'] = Craft::t('seclude', 'Seclude');
 
-        $item['subnav']['policies'] = [
-            'label' => Craft::t('seclude', 'Policies'),
-            'url' => 'seclude/policies',
-        ];
+        $isAdmin = Craft::$app->getUser()->getIsAdmin();
 
-        if ($this->canAssign()) {
-            $item['subnav']['assignments'] = [
-                'label' => Craft::t('seclude', 'Assignments'),
-                'url' => 'seclude/assignments',
+        if ($isAdmin) {
+            $item['subnav']['policies'] = [
+                'label' => Craft::t('seclude', 'Policies'),
+                'url' => 'seclude/policies',
             ];
+        } else {
+            // `seclude` routes to the policies index, which is admin-only.
+            $item['url'] = 'seclude/assignments';
         }
+
+        $item['subnav']['assignments'] = [
+            'label' => Craft::t('seclude', 'Assignments'),
+            'url' => 'seclude/assignments',
+        ];
 
         $item['subnav']['explain'] = [
             'label' => Craft::t('seclude', 'Who can edit what'),
             'url' => 'seclude/explain',
         ];
 
-        if (Craft::$app->getUser()->getIsAdmin()) {
+        if ($isAdmin) {
             if ($this->getSettings()->logRefusals) {
                 $item['subnav']['refusals'] = [
                     'label' => Craft::t('seclude', 'Refusals'),

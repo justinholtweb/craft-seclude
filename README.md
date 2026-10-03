@@ -82,10 +82,18 @@ Shared mode is multi-tenancy in two dropdowns. Add a Region field to entries and
 every article written from then on lands with the right people without anybody touching the plugin
 again.
 
+**Lock the user's field.** Craft lets people edit the fields on their own account. If Jane can
+set her own Region, she can choose what this grant gives her. In the user field layout, give the
+field an *Editable* condition that leaves the governed users out.
+
 ### Elements matching a condition
 
 Craft's own condition builder — status, dates, custom field values, anything a plugin adds a rule
 for. The same UI as entry index filters.
+
+If a rule stops working — its field is deleted, or the plugin that provided it is uninstalled —
+the grant matches **nothing** until the condition is fixed. Craft on its own would quietly treat
+that rule as matching everything.
 
 ### …and everything beneath them
 
@@ -120,14 +128,22 @@ Everything routes through one verdict, so a listing and an edit page cannot disa
 - **Element indexes** — filtered, so refused entries are not sitting there leaking their titles
 - **Relation fields and link pickers** — filtered too, optionally
 - **Index sources** — sections with nothing in them for that user are hidden
+- **Moves, deletes and saves that skip Craft's checks** — moving an entry to another section,
+  dragging it in a structure, the asset and user screens. Refused for an element the user may not
+  edit or delete
 - **New elements** — assigned to whoever created them, so nobody is locked out of their own work
 
 Front-end output is untouched. Seclude is about authoring; for gating public content, that is a
 different job.
 
+Two places in the control panel can still show the **title** of an element the user can't open:
+the *Recent Entries* dashboard widget, and an element chip requested directly by its ID. Neither
+lets them open, edit or list it.
+
 ## Who can edit what
 
-A screen that answers the question, for any user and any element: every ability, every policy that
+For admins and anyone who can assign. A screen that answers the question, for any user and any
+element they can see themselves: every ability, every policy that
 applied, every policy that did not and why, and which grant matched.
 
 ```sh
@@ -165,6 +181,10 @@ php craft seclude/assignments/prune
 `panic` exists because a permissions plugin needs a way back that does not require getting into the
 control panel it may be blocking.
 
+Policies live in project config, so `panic` changes `project.yaml`. On an environment that deploys
+project config from the repository, the next `project-config/apply` switches them back on — commit
+the change, or fix the policy before the next deploy.
+
 ## Settings
 
 | | |
@@ -179,7 +199,8 @@ control panel it may be blocking.
 
 - **Bypass all Seclude policies** — for a support account that should not be an admin
 - **Assign elements to other users** — hand out work without being an admin. Non-admins can only
-  assign elements they can reach themselves
+  hand over an element if they hold every ability the policy grants on it themselves, can't assign
+  to themselves, and leave alone assignments of elements they couldn't hand over
 
 ## When a policy cannot be read
 
@@ -191,6 +212,9 @@ of a wrong *allow* here is that a logged-in colleague sees a page early. The cos
 is the entire editorial team locked out of the control panel by a stale UID.
 
 Inside a policy it can read, an element matching no grant is refused.
+
+A named user who has been deleted doesn't count as unreadable: they simply match nobody. Otherwise
+deleting one person a policy names would switch it off for everyone else it names.
 
 ## Coming from Isolate
 

@@ -57,6 +57,12 @@ class ConditionGrant extends BaseGrant
             return null;
         }
 
+        if ($this->isDegraded($condition)) {
+            return (new Query())
+                ->select(['id' => 'seclude_ci.id'])
+                ->from(['seclude_ci' => $this->idRows([])]);
+        }
+
         if ($this->_ids === null) {
             $elementType = $policy->scope->elementType();
             /** @var class-string<ElementInterface> $elementType */
@@ -92,6 +98,10 @@ class ConditionGrant extends BaseGrant
             return null;
         }
 
+        if ($this->isDegraded($condition)) {
+            return false;
+        }
+
         try {
             return $condition->matchElement($element);
         } catch (Throwable $e) {
@@ -120,6 +130,11 @@ class ConditionGrant extends BaseGrant
     public function describe(Policy $policy): string
     {
         $condition = $this->resolveCondition($policy);
+
+        if ($condition !== null && $this->isDegraded($condition)) {
+            return Craft::t('seclude', 'nothing — a condition rule refers to a field or rule that no longer exists');
+        }
+
         $count = $condition !== null ? count($condition->getConditionRules()) : 0;
 
         // A condition with no rules matches everything, which is a legitimate way to say "the whole
@@ -138,6 +153,44 @@ class ConditionGrant extends BaseGrant
             'type' => self::type(),
             'condition' => $this->condition,
         ];
+    }
+
+    /**
+     * Whether the condition has quietly stopped restricting anything it was written to.
+     *
+     * Two ways that happens, and Craft reports neither. Rebuilding can drop a rule outright — a
+     * rule class from an uninstalled plugin. Or it keeps the rule but the rule's field is gone, and
+     * Craft's field rules then deliberately match *every* element (`matchElement()` returns true
+     * for a missing field). Every rule is a further restriction, so either way the condition
+     * matches more than it was written to, up to the whole scope. A grant in that state matches
+     * nothing instead: the policy still applies, so this refuses elements inside it rather than
+     * switching the policy off.
+     */
+    private function isDegraded(ElementConditionInterface $condition): bool
+    {
+        $lost = $this->configuredRuleCount() - count($condition->getConditionRules());
+
+        foreach ($condition->getConditionRules() as $rule) {
+            // A field rule whose field has gone cannot even name itself: `getLabel()` throws.
+            try {
+                $rule->getLabel();
+            } catch (Throwable) {
+                $lost++;
+            }
+        }
+
+        if ($lost > 0) {
+            Craft::warning(sprintf('Condition grant has %d unusable rule(s); matching nothing.', $lost), Plugin::LOG_CATEGORY);
+        }
+
+        return $lost > 0;
+    }
+
+    private function configuredRuleCount(): int
+    {
+        $rules = $this->condition['conditionRules'] ?? [];
+
+        return is_array($rules) ? count($rules) : 0;
     }
 
     private function resolveCondition(Policy $policy): ?ElementConditionInterface
